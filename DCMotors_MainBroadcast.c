@@ -28,10 +28,11 @@ The heart of the code can be found in DCMotors_MotorControls.cs
 char ID = '0';
 
 /** User Called Functions *************************************/
-void delay(int time)
+
+void delay(void)
 {
-    int i;
-    for(i = 0; i<=10000000; i++);
+    long unsigned int num_calls = SYS_FREQ/8;
+    while(num_calls) num_calls--;
 }
 
 /* Will currently only work for robots with a node identifier that is
@@ -42,10 +43,10 @@ int GetID(void)
     INTEnable(INT_U2TX,0);
     char InBuffer[10];
     char ID;
-    INTDisableInterrupts();
-    delay(1);
+    /* INTDisableInterrupts(); */
+    delay();
     putsUART2("+++");
-    delay(1);
+    delay();
     getsUART2(3,InBuffer,UART_TIMEOUT); // Timeout is approx .5 seconds
     putsUART2("ATNI\r");
     getsUART2(2,InBuffer,UART_TIMEOUT);
@@ -56,7 +57,6 @@ int GetID(void)
     INTEnable(INT_U2TX,1);
     return ID;
 }
-
 
 /** Main Function: ********************************************/
 int main()

@@ -1131,7 +1131,7 @@ void PoseUpdate(void)
     	else if(top_state == '1')
     	{
     	    // If this is a one, we are just controlling speed:
-    	    dir_top = RS232_In_Buffer[2];
+    	    dir_top = RS232_In_Buffer[3];
     	    if(dir_top == '0') top_desired = -top_desired;
     	    height_flag = 0;
     	}

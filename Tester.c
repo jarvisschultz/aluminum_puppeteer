@@ -21,10 +21,12 @@ The heart of the code can be found in DCMotors_MotorControls.cs
 
 /** Global Variables ******************************************/
 #define SYS_FREQ 				(80000000L)	
-#define TOGGLES_PER_SEC			1000
+#define TOGGLES_PER_SEC			1
 #define CORE_TICK_RATE	       (SYS_FREQ/2/TOGGLES_PER_SEC)
-#define BAUDRATE (115200)
-short int ID = 0;
+#define BAUDRATE               (115200)
+#define UART_TIMEOUT           (2100000)
+/* #define ID_ADDRESS             (0xBMXPUP00) */
+/* char ID = '0'; */
 
 /** Function Declarations *************************************/
 
@@ -43,7 +45,7 @@ void InitUART2(int pbClk)
     // no parity 8 bit 
     // 1 stop bit 
     // IRDA encoder and decoder disabled 
-g    // CTS and RTS pins are disabled 
+    // CTS and RTS pins are disabled 
     // UxRX idle state is '1' 
     // 16x baud clock - normal speed
 #define config1 	UART_EN | UART_IDLE_CON | UART_RX_TX | UART_DIS_WAKE | UART_DIS_LOOPBACK | UART_DIS_ABAUD | UART_NO_PAR_8BIT | UART_1STOPBIT | UART_IRDA_DIS | UART_DIS_BCLK_CTS_RTS| UART_NORMAL_RX | UART_BRGH_SIXTEEN
@@ -80,32 +82,84 @@ void SendDataBuffer(const char *buffer, UINT32 size)
         ; 
 }
 
-
-void delay(int time)
+void delay(void)
 {
-    int i;
-    for(i = 0; i<=40000000; i++);
+    long unsigned int num_calls = SYS_FREQ/8;
+    while(num_calls) num_calls--;
 }
 
 /* Will currently only work for robots with a node identifier that is
  * less than two character */
-
 int GetID(void)
 {
+    INTEnable(INT_U2RX,0);
+    INTEnable(INT_U2TX,0);
     char InBuffer[10];
-    int ID;
+    char ID;
     INTDisableInterrupts();
-    delay(1);
+    delay();
     putsUART2("+++");
-    delay(1);
-    getsUART2(3,InBuffer,2100000); // Timeout is approx .5 seconds
+    delay();
+    getsUART2(3,InBuffer,UART_TIMEOUT); // Timeout is approx .5 seconds
     putsUART2("ATNI\r");
-    getsUART2(2,InBuffer,2100000);
-    ID = InBuffer[0]-'0';
+    getsUART2(2,InBuffer,UART_TIMEOUT);
+    ID = InBuffer[0];
     putsUART2("ATCN\r");
-    getsUART2(3,InBuffer,2100000);
+    getsUART2(3,InBuffer,UART_TIMEOUT);
+    INTEnable(INT_U2RX,1);
+    INTEnable(INT_U2TX,1);
     return ID;
 }
+
+/* unsigned int NVMUnlock (unsigned int nvmop) */
+/* { */
+/*     unsigned int status; */
+
+/*     // Suspend or Disable all Interrupts */
+/*     asm volatile("di %0" : "=r" (status)); */
+
+/*     // Enable Flash Write/Erase Operations and Select */
+
+/*     // Flash operation to perform */
+/*     NVMCON = nvmop; */
+
+/*     // Write Keys */
+/*     NVMKEY = 0xAA996655; */
+/*     NVMKEY = 0x556699AA; */
+
+/*     // Start the operation using the Set Register */
+/*     NVMCONSET = 0x8000; */
+
+/*     // Wait for operation to complete */
+/*     while(NVMCON & 0x8000); */
+
+/*     // Restore Interrupts */
+/*     if (status & 0x00000001) */
+/* 	asm volatile ("ei"); */
+/*     else */
+/* 	asm volatile ("di"); */
+
+/*     // Return NVMERR and LVDERR Error Status Bits */
+/*     return (NVMCON & 0x3000); */
+/* } */
+
+
+/* unsigned int NVMWriteWord (void* address, unsigned int data) */
+/* { */
+/*     unsigned int res; */
+
+/*     // Load data into NVMDATA register */
+/*     NVMDATA = data; */
+
+/*     // Load address to program into NVMADDR register */
+/*     NVMADDR = (unsigned int) address; */
+
+/*     // Unlock and Write Word */
+/*     res = NVMUnlock (0x4001); */
+
+/*     // Return Result */
+/*     return res; */
+/* } */
 
 
 /** Main Function: ********************************************/
@@ -115,7 +169,9 @@ int main()
 	long int j = 0;
 	int i;
 	UINT8 data[32];
-	
+	char ID;
+	unsigned int *ptr_ID;
+	/* short int */
 	
 	// Let's set the integer PbClk to be the value of the frequency
 	// of the peripheral bus clock
@@ -132,7 +188,22 @@ int main()
 	putsUART2("Program Started\r\n\n");
 	while(BusyUART2());
 
-	ID = GetID();
+	// Let's get a pointer to a memory address:
+	ptr_ID = (void*)0x9D070000;
+	// Now, let's read that value:
+	ID =(char) (*ptr_ID);
+
+	if(ID != '2')
+	{
+	    mLED_1_Toggle();
+	    ID = GetID();
+	    mLED_2_Toggle();
+	    NVMWriteWord(ptr_ID , ID);
+	}
+
+	putcUART2(ID);
+	while(BusyUART2());
+	putsUART2("\n\r\n\r");
 
 	while(1)
 	{
