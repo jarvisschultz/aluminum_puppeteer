@@ -1,0 +1,13 @@
+*~
+build/
+dist/
+*.o
+*.hex
+*.map
+*.elf
+procdefs.ld
+*.d
+*.mcs
+*.mcw
+*.mcp
+motdata
