@@ -24,7 +24,7 @@ LanguageToolLocation=C:\Program Files\Microchip\MPLAB C32\bin\pic32-ld.exe
 PPAD=$(BINDIR)||$(TMPDIR)|.\Objects||$(AINDIR)||$(INCDIR)|C:\Microchip Solutions\Microchip\Include;.;..\Microchip_USB_2_7\Include||$(LIBDIR)||$(LKRDIR)||
 SOLK=<src>|Tester.c||<obj>||<lib>||<lkr>||
 SuiteArgsString=
-ToolArgsString=-Map="$(BINDIR_)$(TARGETBASE).map" -o"$(BINDIR_)$(TARGETBASE).$(TARGETSUFFIX)"
+ToolArgsString=--defsym=_min_heap_size=460 -Map="$(BINDIR_)$(TARGETBASE).map" -o"$(BINDIR_)$(TARGETBASE).$(TARGETSUFFIX)"
 TraceCmdString=
 DebugOptions=
 [File002]
@@ -37,7 +37,7 @@ LanguageToolLocation=C:\Program Files\Microchip\MPLAB C32\bin\pic32-ld.exe
 PPAD=$(BINDIR)||$(TMPDIR)|.\Objects||$(AINDIR)||$(INCDIR)|C:\Microchip Solutions\Microchip\Include;.;..\Microchip_USB_2_7\Include||$(LIBDIR)||$(LKRDIR)||
 SOLK=<src>|Tester.c||<obj>||<lib>||<lkr>||
 SuiteArgsString=
-ToolArgsString=-Map="$(BINDIR_)$(TARGETBASE).map" -o"$(BINDIR_)$(TARGETBASE).$(TARGETSUFFIX)"
+ToolArgsString=--defsym=_min_heap_size=460 -Map="$(BINDIR_)$(TARGETBASE).map" -o"$(BINDIR_)$(TARGETBASE).$(TARGETSUFFIX)"
 TraceCmdString=
 DebugOptions=
 [TOOL_LOC_STAMPS]

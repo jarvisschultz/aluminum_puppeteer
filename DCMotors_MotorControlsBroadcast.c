@@ -195,7 +195,7 @@ static float D = 3.0;			// Diameter of the wheel in inches
 static float front_dist = 1.77;		// Perpendicular distance from axle axis to front of robot in inches
 static float speed = 3.0;		// This is the default wheel revolution rate when in pose control mode (rad/s).
 static float speed_t = 3.0;		// This is the default speed for moving the top motor during position control.
-char RS232_In_Buffer[DATA_LENGTH] = "zzzzzzzzzzzzzzzz";	//  This is an array that is initialized with 
+static char RS232_In_Buffer[DATA_LENGTH] = "zzzzzzzzzzzzzzzz";	//  This is an array that is initialized with 
                                                                 // useless data in it; it is used for temporary 
                                                                 // storage of data brought in from the PC on UART2
 static int i = 0;	        // This is for marking the position in the RS232_In_Buffer that we are writing into.
@@ -224,10 +224,10 @@ static float left_desired;	// This is the desired wheel speed of the left motor 
 static float right_desired;	// This is the desired wheel speed of the right motor in rad/sec sent over RS232	
 static float top_desired;	// This is the desired wheel speed of the top motor in rad/sec sent over RS232	
 
-UINT8 STR[1024];				// An empty string we use for sending data
-static float kp = 500;				// Gain on the proportional error term
-static float ki = 50;				// Gain on the integral error term
-static float kd = 0.1;			// Gain on the derivative error term
+static UINT8 STR[1024];		// An empty string we use for sending data
+static float kp = 500;		// Gain on the proportional error term
+static float ki = 50;		// Gain on the integral error term
+static float kd = 0.1;		// Gain on the derivative error term
 extern char ID;
 static char BROADCAST = '9';
 

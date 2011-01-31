@@ -17,16 +17,17 @@ The heart of the code can be found in DCMotors_MotorControls.cs
 /** Includes **************************************************/
 #include "HardwareProfile.h"
 #include "Compiler.h"
-
+			
 
 /** Global Variables ******************************************/
-#define SYS_FREQ 				(80000000L)	
-#define TOGGLES_PER_SEC			1
-#define CORE_TICK_RATE	       (SYS_FREQ/2/TOGGLES_PER_SEC)
-#define BAUDRATE               (115200)
-#define UART_TIMEOUT           (2100000)
-/* #define ID_ADDRESS             (0xBMXPUP00) */
-/* char ID = '0'; */
+#define SYS_FREQ		(80000000L)	
+#define TOGGLES_PER_SEC		(1000)
+#define CORE_TICK_RATE		(SYS_FREQ/2/TOGGLES_PER_SEC)
+#define BAUDRATE		(115200)
+#define UART_TIMEOUT		(2100000)
+#define ID_ADDRESS	        (0x9D07CFF0)
+#define ID_ADDRESS_FLAG	        (0x9D07CFE0)
+
 
 /** Function Declarations *************************************/
 
@@ -90,7 +91,7 @@ void delay(void)
 
 /* Will currently only work for robots with a node identifier that is
  * less than two character */
-int GetID(void)
+char GetID(void)
 {
     INTEnable(INT_U2RX,0);
     INTEnable(INT_U2TX,0);
@@ -111,57 +112,6 @@ int GetID(void)
     return ID;
 }
 
-/* unsigned int NVMUnlock (unsigned int nvmop) */
-/* { */
-/*     unsigned int status; */
-
-/*     // Suspend or Disable all Interrupts */
-/*     asm volatile("di %0" : "=r" (status)); */
-
-/*     // Enable Flash Write/Erase Operations and Select */
-
-/*     // Flash operation to perform */
-/*     NVMCON = nvmop; */
-
-/*     // Write Keys */
-/*     NVMKEY = 0xAA996655; */
-/*     NVMKEY = 0x556699AA; */
-
-/*     // Start the operation using the Set Register */
-/*     NVMCONSET = 0x8000; */
-
-/*     // Wait for operation to complete */
-/*     while(NVMCON & 0x8000); */
-
-/*     // Restore Interrupts */
-/*     if (status & 0x00000001) */
-/* 	asm volatile ("ei"); */
-/*     else */
-/* 	asm volatile ("di"); */
-
-/*     // Return NVMERR and LVDERR Error Status Bits */
-/*     return (NVMCON & 0x3000); */
-/* } */
-
-
-/* unsigned int NVMWriteWord (void* address, unsigned int data) */
-/* { */
-/*     unsigned int res; */
-
-/*     // Load data into NVMDATA register */
-/*     NVMDATA = data; */
-
-/*     // Load address to program into NVMADDR register */
-/*     NVMADDR = (unsigned int) address; */
-
-/*     // Unlock and Write Word */
-/*     res = NVMUnlock (0x4001); */
-
-/*     // Return Result */
-/*     return res; */
-/* } */
-
-
 /** Main Function: ********************************************/
 int main()
 {
@@ -169,15 +119,14 @@ int main()
 	long int j = 0;
 	int i;
 	UINT8 data[32];
-	char ID;
+	char ID, ID_flag;
 	unsigned int *ptr_ID;
-	/* short int */
+	unsigned int *ptr_ID_flag;      
 	
 	// Let's set the integer PbClk to be the value of the frequency
 	// of the peripheral bus clock
 	PbClk = SYSTEMConfigPerformance(SYS_FREQ);	
-	
-	// Turn off JTAG so we get the pins back
+   	// Turn off JTAG so we get the pins back
  	mJTAGPortEnable(0);
 	// Initialize the LED's:
 	mInitAllLEDs();		
@@ -188,18 +137,45 @@ int main()
 	putsUART2("Program Started\r\n\n");
 	while(BusyUART2());
 
-	// Let's get a pointer to a memory address:
-	ptr_ID = (void*)0x9D070000;
-	// Now, let's read that value:
-	ID =(char) (*ptr_ID);
+	// Let's get a pointer to a memory address for :
+	ptr_ID_flag = (void*)ID_ADDRESS_FLAG;
+	ptr_ID = (void*)ID_ADDRESS;
+	// Let's read the value in the flag address:
+	ID_flag = (char) (*ptr_ID_flag);
 
-	if(ID != '2')
+	putcUART2(ID_flag);
+	while(BusyUART2());
+	putsUART2("\n\r\n\r");	
+       
+	if(ID_flag != '1' || !swUser)
 	{
-	    mLED_1_Toggle();
-	    ID = GetID();
+	    // If either of these are true, then let's read our
+	    // address from the XBee
 	    mLED_2_Toggle();
-	    NVMWriteWord(ptr_ID , ID);
+	    ID = GetID();
+	    mLED_3_Toggle();
+	    // Now, store the ID in its memory address
+	    NVMWriteWord(ptr_ID , (char) ID);
+	    if(NVMIsError())
+	    {
+		mLED_1_Toggle();
+		NVMClearError();
+	    }
+	    // Now, set the flag that says we have read in the memory
+	    // address
+	    NVMWriteWord(ptr_ID_flag, '1');
 	}
+	else
+	{
+	    // We just read the ID Value
+	    ID = (char) (*ptr_ID);
+	    Nop();
+	}
+
+	putcUART2(ID_flag);
+	while(BusyUART2());
+	putsUART2("\n\r\n\r");	
+
 
 	putcUART2(ID);
 	while(BusyUART2());

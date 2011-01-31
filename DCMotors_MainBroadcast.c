@@ -25,7 +25,11 @@ The heart of the code can be found in DCMotors_MotorControls.cs
 #define TOGGLES_PER_SEC	       1000
 #define CORE_TICK_RATE	       (SYS_FREQ/2/TOGGLES_PER_SEC)
 #define UART_TIMEOUT           (2100000)
-char ID = '0';
+#define ID_ADDRESS	        (0x9D07CFF0)
+#define ID_ADDRESS_FLAG	        (0x9D07CFE0)
+/* char ID; */
+char ID, ID_flag;
+unsigned int *ptr_ID, *ptr_ID_flag;
 
 /** User Called Functions *************************************/
 
@@ -37,13 +41,12 @@ void delay(void)
 
 /* Will currently only work for robots with a node identifier that is
  * less than two character */
-int GetID(void)
+char GetID(void)
 {
     INTEnable(INT_U2RX,0);
     INTEnable(INT_U2TX,0);
     char InBuffer[10];
-    char ID;
-    /* INTDisableInterrupts(); */
+    char ID;   
     delay();
     putsUART2("+++");
     delay();
@@ -80,8 +83,42 @@ int main()
 	// Send feedback to the user:
 	putsUART2("Program Started\r\n\n");
 	while(BusyUART2());
-	// Get the robot ID:
-	ID = GetID();
+
+	// Let's set the pointers we initialized to the addresses
+	// defined at the beginning
+	ptr_ID_flag = (void*)ID_ADDRESS_FLAG;
+	ptr_ID = (void*)ID_ADDRESS;
+	// Let's read the value in the flag address:
+	ID_flag = (char) (*ptr_ID_flag);
+       
+	if(ID_flag != '1' || !swUser)
+	{
+	    // If either of these are true, then let's read our
+	    // address from the XBee
+	    mLED_2_Toggle();
+	    ID = GetID();
+	    mLED_3_Toggle();
+	    // Now, store the newly read ID in its memory address
+	    NVMWriteWord(ptr_ID , (char) ID);
+	    if(NVMIsError())
+	    {
+		mLED_1_Toggle();
+		NVMClearError();
+	    }
+	    // Now, set the flag that says we have read in the memory
+	    // address
+	    NVMWriteWord(ptr_ID_flag, '1');
+	}
+	else
+	{
+	    // We just read the ID Value
+	    ID = (char) (*ptr_ID);
+	}
+
+	putcUART2(ID);
+	while(BusyUART2());
+	putsUART2("\n\r");
+
 
 	// Initialize the second timer for checking kinematics:
 	InitTimer2();
