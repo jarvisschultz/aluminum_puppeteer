@@ -8,7 +8,7 @@ DCMotors_MotorControls.c.
 *************************************************/
 #ifndef _MOTORS
 	#define _MOTORS
-#include "Compiler.h"	
+#include <Compiler.h>	
 void SetStepsLeft(int set_steps);   	// This function manually changes the number stored in the number of steps variable for the left motor
 void SetSpeedLeft(float motor_speed, float dt); 	// This function sets the left motor speed at the desired speed and begins driving the motor
 float GetSpeedLeft(void);				// This function simply returns the current value of the speed set for the left motor in (steps/sec)

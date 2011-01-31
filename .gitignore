@@ -1,6 +1,7 @@
 *~
 build/
 dist/
+objects/
 *.o
 *.hex
 *.map

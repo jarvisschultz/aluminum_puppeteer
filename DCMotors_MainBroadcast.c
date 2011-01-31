@@ -1,33 +1,45 @@
 /**************************************************************
-Jarvis Schultz and Marcus Hammond
+Jarvis Schultz
 
-8-25-2010
+8-27-2010
 
-This is the main section of code for the DC Motor controlled puppeteers 
-that were made as part of the Puppet People project in the summer of 2010.
-The puppeteers are PIC controlled by a PIC32MX416F512L that is mounted 
-on a UBW32 board available from SparkFun.
+This is the main section of code for the DC Motor controlled
+puppeteers that were made as part of the Puppet People project in the
+summer of 2010.  The puppeteers are PIC controlled by a
+PIC32MX416F512L that is mounted on a UBW32 board available from
+SparkFun.
 
 This main code really does not contain much substance, it simply calls
-some initialization functions and sits in an infinite while loop.
-The heart of the code can be found in DCMotors_MotorControls.cs
+some initialization functions and sits in an infinite while loop.  The
+heart of the code can be found in DCMotors_MotorControls.c.
+
+EDIT: 1-31-2011
+
+This code has been modified so that the PIC now reads the node
+identifier address of the XBee.  It stores this value in the global
+variable ID.  This variable is used in DCMotors_MotorControls.c to
+determine which robot the PIC is attached to.  In other words, it is
+used to decide if an instruction sent out over the wireless network
+applies to this robot.  This initialization will only run the first
+time that the PIC boots up after a re-programming.  If at any time the
+user wants to re-run the initialization, all they have to do is hold
+the swUser button while re-setting the PIC.  For the initialization to
+complete successfully, there should be no data transferred over the
+XBee network during initialization.
 ***************************************************************/
 
 
 /** Includes **************************************************/
 #include "DCMotors_FunctionsBroadcast.h"
 #include "HardwareProfile.h"
-#include "Compiler.h"
-
 
 /** Global Variables ******************************************/
 #define SYS_FREQ 	       (80000000L)	
 #define TOGGLES_PER_SEC	       1000
 #define CORE_TICK_RATE	       (SYS_FREQ/2/TOGGLES_PER_SEC)
-#define UART_TIMEOUT           (2100000)
-#define ID_ADDRESS	        (0x9D07CFF0)
-#define ID_ADDRESS_FLAG	        (0x9D07CFE0)
-/* char ID; */
+#define UART_TIMEOUT	       (2100000)
+#define ID_ADDRESS	       (0x9D07CFF0)
+#define ID_ADDRESS_FLAG	       (0x9D07CFE0)
 char ID, ID_flag;
 unsigned int *ptr_ID, *ptr_ID_flag;
 
@@ -39,8 +51,8 @@ void delay(void)
     while(num_calls) num_calls--;
 }
 
-/* Will currently only work for robots with a node identifier that is
- * less than two character */
+// Will currently only work for robots with a node identifier that is
+// less than two character 
 char GetID(void)
 {
     INTEnable(INT_U2RX,0);
