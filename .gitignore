@@ -12,3 +12,5 @@ procdefs.ld
 *.mcw
 *.mcp
 motdata
+Broadcast.X/
+

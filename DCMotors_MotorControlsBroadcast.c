@@ -126,7 +126,7 @@ information about what the robot will do when it receives the instruction.
 
 /** Includes ************************************************/
 #include "HardwareProfile.h"
-#include "Compiler.h"
+#include <Compiler.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -135,8 +135,6 @@ information about what the robot will do when it receives the instruction.
 #include "DCMotors_FunctionsBroadcast.h"
 #define _MOTORS
 #endif
-
-
 
 
 
@@ -160,7 +158,7 @@ information about what the robot will do when it receives the instruction.
 #define MAX_RESOLUTION	3999	       // Proportional to period of PWM (represents the maximum 
 				       // number that we can use for PWM function)
 #define ERROR_DEADBAND	0.05           // This is a deadband where we do nothing to the motors
-#define DATA_LENGTH     17             // This is the length of a data string
+#define DATA_LENGTH     18             // This is the length of a data string
 #define PI  3.141592653                // This is a numerical constant for pi
 #define frequency  1500 	       // Let's check the kinematics this many times per second
 #define GEARRATIO  (19.0*(3.0/4.0))    // The gear ratio of the gearhead on the DC motor
@@ -195,9 +193,9 @@ static float D = 3.0;			// Diameter of the wheel in inches
 static float front_dist = 1.77;		// Perpendicular distance from axle axis to front of robot in inches
 static float speed = 3.0;		// This is the default wheel revolution rate when in pose control mode (rad/s).
 static float speed_t = 3.0;		// This is the default speed for moving the top motor during position control.
-static char RS232_In_Buffer[DATA_LENGTH] = "zzzzzzzzzzzzzzzz";	//  This is an array that is initialized with 
-                                                                // useless data in it; it is used for temporary 
-                                                                // storage of data brought in from the PC on UART2
+static unsigned char RS232_In_Buffer[DATA_LENGTH] = "zzzzzzzzzzzzzzzzzz";//  This is an array that is initialized with 
+	                                                    // useless data in it; it is used for temporary 
+                                                            // storage of data brought in from the PC on UART2
 static int i = 0;	        // This is for marking the position in the RS232_In_Buffer that we are writing into.
 static int data_flag = 0;  	// This variable is used for telling if we have received updated information about the robot's
                                 // current position or current instructions.  If we have, we break out of the current control loop
@@ -215,15 +213,14 @@ static float height_sent = 0.0;	// This is the value of the desired height of th
 static float first_angle = 0.0; 	// This is the angle of the vector from the robots current position towards its goal position
                                         // to begin heading towards the new point sent over RS232
 static int exec_state = 0;	        // This variable is to determine which mode of operation we are currently in:
-// 0) Just sitting there
-// 1) Wheel Speed Control
-// 2) Initial rotation towards destination
-// 3) Driving towards destination
-// 4) Rotating towards final orientation
+						// 0) Just sitting there
+						// 1) Wheel Speed Control
+						// 2) Initial rotation towards destination
+						// 3) Driving towards destination
+						// 4) Rotating towards final orientation
 static float left_desired;	// This is the desired wheel speed of the left motor in rad/sec sent over RS232
 static float right_desired;	// This is the desired wheel speed of the right motor in rad/sec sent over RS232	
 static float top_desired;	// This is the desired wheel speed of the top motor in rad/sec sent over RS232	
-
 static UINT8 STR[1024];		// An empty string we use for sending data
 static float kp = 500;		// Gain on the proportional error term
 static float ki = 50;		// Gain on the integral error term
@@ -276,8 +273,19 @@ void __ISR(_UART2_VECTOR, ipl7) IntUart2Handler(void)
 	// zero so that we can deal with the data in main
 	if((i-1) == (DATA_LENGTH-1) && header_flag == 1) 
 	{
-	    data_flag = 1;
-	    mLED_1_Toggle();
+	    // If both of these are true, then we can check the checksum:
+	    unsigned int checksum = 0;
+	    short int j = 0;
+	    for(j = 0; j < DATA_LENGTH-1; j++)
+	    	checksum += RS232_In_Buffer[j];
+
+	    checksum = 0xFF-(checksum & 0xFF);
+
+	    if(checksum == RS232_In_Buffer[DATA_LENGTH-1])
+	    {
+		data_flag = 1;
+		mLED_1_Toggle();
+	    }
 	}
     }
 
