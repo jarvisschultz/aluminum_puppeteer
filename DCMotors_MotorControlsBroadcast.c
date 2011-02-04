@@ -443,21 +443,11 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics(void)
 	
     // Now, let's update the height of our string
     height += Vt*dt;
-/*	
-	if(!swUser)
-	{
-	sprintf(STR,"%f\r\n\r\n",height);
-	SendDataBuffer(STR,strlen(STR));
-	}
-*/
-	
 	
     if(height_flag == 1)
     {
 	if(fabs(height_sent-height) < 0.01)
 	{
-//    	    sprintf(STR,"%f\r\n\r\n",height);
-//	    SendDataBuffer(STR,strlen(STR));
 	    height_flag = 0;
 	    top_desired = 0.0;
 	}
@@ -587,10 +577,10 @@ void SetStepsTop(int set_steps)
 void SetSpeedLeft(float error, float dt)  // motor speed in rad/s
 {
     static float sum_error = 0.0;	// This is the integrated error
-    static float d_error = 0.0;       // This is the derivative error
-    static float last_d_error = 0.0;  // This is the previous derivative error    
-    static float last_error = 0.0;    // This is the error sent to SetSpeed functions last time for D-control
-    static float total_error = 0.0;   // This is the sum of all three components of the error
+    static float d_error = 0.0;		// This is the derivative error
+    static float last_d_error = 0.0;	// This is the previous derivative error    
+    static float last_error = 0.0;	// This is the error sent to SetSpeed functions last time for D-control
+    static float total_error = 0.0;	// This is the sum of all three components of the error
     static unsigned int PWMVal = 0;     // The actual value that will get stored in the PMW register
     static float tau = 1.0/(2.0*PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
 
@@ -632,10 +622,10 @@ void SetSpeedLeft(float error, float dt)  // motor speed in rad/s
 void SetSpeedRight(float error, float dt)  // motor speed in rad/s
 {
     static float sum_error = 0.0;	// This is the integrated error
-    static float d_error = 0.0;       // This is the derivative error
-    static float last_d_error = 0.0;  // This is the previous derivative error    
-    static float last_error = 0.0;    // This is the error sent to SetSpeed functions last time for D-control
-    static float total_error = 0.0;   // This is the sum of all three components of the error
+    static float d_error = 0.0;		// This is the derivative error
+    static float last_d_error = 0.0;	// This is the previous derivative error    
+    static float last_error = 0.0;	// This is the error sent to SetSpeed functions last time for D-control
+    static float total_error = 0.0;	// This is the sum of all three components of the error
     static unsigned int PWMVal = 0;     // The actual value that will get stored in the PMW register
     static float tau = 1.0/(2.0*PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
 
@@ -674,10 +664,10 @@ void SetSpeedRight(float error, float dt)  // motor speed in rad/s
 void SetSpeedTop(float error, float dt)  // motor speed in rad/s
 {
     static float sum_error = 0.0;	// This is the integrated error
-    static float d_error = 0.0;       // This is the derivative error
-    static float last_d_error = 0.0;  // This is the previous derivative error    
-    static float last_error = 0.0;    // This is the error sent to SetSpeed functions last time for D-control
-    static float total_error = 0.0;   // This is the sum of all three components of the error
+    static float d_error = 0.0;		// This is the derivative error
+    static float last_d_error = 0.0;	// This is the previous derivative error    
+    static float last_error = 0.0;	// This is the error sent to SetSpeed functions last time for D-control
+    static float total_error = 0.0;	// This is the sum of all three components of the error
     static unsigned int PWMVal = 0;     // The actual value that will get stored in the PMW register
     static float tau = 1.0/(2.0*PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
 
@@ -800,7 +790,7 @@ void InitUART2(int pbClk)
     // CTS and RTS pins are disabled 
     // UxRX idle state is '1' 
     // 16x baud clock - normal speed
-#define config1 	UART_EN | UART_IDLE_CON | UART_RX_TX | UART_DIS_WAKE | UART_DIS_LOOPBACK | UART_DIS_ABAUD | UART_NO_PAR_8BIT | UART_1STOPBIT | UART_IRDA_DIS | UART_DIS_BCLK_CTS_RTS| UART_NORMAL_RX | UART_BRGH_SIXTEEN
+#define config1		UART_EN | UART_IDLE_CON | UART_RX_TX | UART_DIS_WAKE | UART_DIS_LOOPBACK | UART_DIS_ABAUD | UART_NO_PAR_8BIT | UART_1STOPBIT | UART_IRDA_DIS | UART_DIS_BCLK_CTS_RTS| UART_NORMAL_RX | UART_BRGH_SIXTEEN
 	
     // define setup Configuration 2 for OpenUARTx
     // IrDA encoded UxTX idle state is '0'
@@ -990,7 +980,7 @@ void PoseUpdate(void)
     char y_sign; 	// Determines if the received y-coordinate is positive or negative
     char data;   	// This is the very first entry in the in buffer (the header byte)
     char dir_left;	// The direction of the left wheel that was sent
-    char dir_right; // The direction of the right wheel that was sent
+    char dir_right;	// The direction of the right wheel that was sent
     char dir_top;	
 		
     // Set the current byte of the RS232_In_Buffer to be equal to data:
@@ -1002,16 +992,15 @@ void PoseUpdate(void)
 	exec_state = 2;
 	// Now let's convert the 15 bytes of chars into useful data
 	x_sign = RS232_In_Buffer[2];
-	x_sent = ((float)(1000*((int) RS232_In_Buffer[3]-48)+
-			  100*((int) RS232_In_Buffer[4]-48)+10*((int) RS232_In_Buffer[5]-48)+
-			  ((int) RS232_In_Buffer[6]-48)))/100.0;
+	sscanf(&RS232_In_Buffer[3],"%4f",&x_sent);
+	x_sent = x_sent/100.0;
+
 	y_sign = RS232_In_Buffer[7];
-	y_sent = ((float)(1000*((int) RS232_In_Buffer[8]-48)+
-			  100*((int) RS232_In_Buffer[9]-48)+10*((int) RS232_In_Buffer[10]-48)+
-			  ((int) RS232_In_Buffer[11]-48)))/100.0;
-	ori_sent = ((float)(1000*((int) RS232_In_Buffer[12]-48)+
-			    100*((int) RS232_In_Buffer[13]-48)+10*((int) RS232_In_Buffer[14]-48)+
-			    ((int) RS232_In_Buffer[15]-48)))/1000.0;
+	sscanf(&RS232_In_Buffer[8],"%4f",&y_sent);
+	y_sent = y_sent/100.0;
+
+	sscanf(&RS232_In_Buffer[12],"%4f",&ori_sent);
+	ori_sent = ori_sent/1000.0;
 
 	if(x_sign == '0') x_sent = -x_sent;
 	if(y_sign == '0') y_sent = -y_sent;
@@ -1079,15 +1068,18 @@ void PoseUpdate(void)
     else if (data == 'h')
     {
 	exec_state = 1;
+
 	dir_left = RS232_In_Buffer[2];
-	left_desired = 10.0*((float) RS232_In_Buffer[3]-48.0)+((float) RS232_In_Buffer[4]-48.0)
-	    +0.1*((float) RS232_In_Buffer[5]-48.0)+0.01*((float) RS232_In_Buffer[6]-48.0);
+	sscanf(&RS232_In_Buffer[3],"%4f",&left_desired);
+	left_desired = left_desired/100.0;
+
 	dir_right = RS232_In_Buffer[7];
-	right_desired = 10.0*((float) RS232_In_Buffer[8]-48.0)+((float) RS232_In_Buffer[9]-48.0)
-	    +0.1*((float) RS232_In_Buffer[10]-48.0)+0.01*((float) RS232_In_Buffer[11]-48.0);
+	sscanf(&RS232_In_Buffer[8],"%4f",&right_desired);
+	right_desired = right_desired/100.0;
+
 	dir_top = RS232_In_Buffer[12];
-	top_desired = 10.0*((float) RS232_In_Buffer[13]-48.0)+((float) RS232_In_Buffer[14]-48.0)
-	    +0.1*((float) RS232_In_Buffer[15]-48.0)+0.01*((float) RS232_In_Buffer[16]-48.0);
+	sscanf(&RS232_In_Buffer[13],"%4f",&top_desired);
+	top_desired = top_desired/100.0;
 
 	// Here we need to calculate the motor speeds and set them	
 	if(dir_left == '0') left_desired = -left_desired;		
@@ -1101,8 +1093,8 @@ void PoseUpdate(void)
     }
     else if (data == 's')
     {
-	speed = 10.0*((float) RS232_In_Buffer[3]-48.0)+((float) RS232_In_Buffer[4]-48.0)
-	    +0.1*((float) RS232_In_Buffer[5]-48.0)+0.01*((float) RS232_In_Buffer[6]-48.0);
+	sscanf(&RS232_In_Buffer[3],"%4f",&speed);
+	speed = speed/100.0;
 	while(BusyUART2());
 	putsUART2("Changed Default Speed\r\n");
     }
@@ -1118,8 +1110,8 @@ void PoseUpdate(void)
     	char top_state;
     	// Get what mode we are in:
     	top_state = RS232_In_Buffer[2];
-    	top_desired = 10.0*((float) RS232_In_Buffer[4]-48.0)+((float) RS232_In_Buffer[5]-48.0)+
-    	    0.1*((float) RS232_In_Buffer[6]-48.0)+0.01*((float) RS232_In_Buffer[7]-48.0);
+  	sscanf(&RS232_In_Buffer[4],"%4f",&top_desired);
+	top_desired = top_desired/100.0;
 		
     	if(top_state == '0')
     	{
@@ -1127,8 +1119,8 @@ void PoseUpdate(void)
     	    // Get the sign of the height:
     	    dir_top = RS232_In_Buffer[8];
     	    // Get the height:
-    	    height_sent = 10.0*((float) RS232_In_Buffer[9]-48.0)+((float) RS232_In_Buffer[10]-48.0)+
-    		0.1*((float) RS232_In_Buffer[11]-48.0)+0.01*((float) RS232_In_Buffer[12]-48.0);
+	    sscanf(&RS232_In_Buffer[9],"%4f",&height_sent);
+	    height_sent = height_sent/100.0;
     	    // Do we need to get the negative of the height?
     	    if(dir_top == '0') height_sent = -height_sent;
     	    // Now, do we need to move up or down?
