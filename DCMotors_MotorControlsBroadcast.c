@@ -50,7 +50,8 @@ Jarvis Schultz and Marcus Hammond
 #define converttop (convert*(3.0/4.0))
 #define ticktime (2.0/(80000000.0))    // For calculating times since timer ISR's were initially called
 #define MAX_BAD_DATA_TOTAL (10)	       
-#define MAX_BAD_DATA	(3)	       
+#define MAX_BAD_DATA	(3)
+#define timeout_frequency (2)
 
 
 
@@ -118,7 +119,7 @@ static short int bad_data_total = 0;
 static short int bad_data = 0;
 static short int movement_flag = 0;
 static short int midstring_flag = 0;
-
+static short int timeout_flag = 0;
 /** Interrupt Handler Functions:**************************************************************************************************/
 // UART 2 interrupt handler
 // it is set at priority level 2
@@ -180,6 +181,7 @@ void __ISR(_UART2_VECTOR, ipl7) IntUart2Handler(void)
 		    mLED_1_Toggle();
 		    midstring_flag = 0;
 		    bad_data = 0;
+		    timeout_flag = 0;
 		}
 		// If checksum is bad, we have found a set of data intended for
 		// this robot that is corrupt in some way.  Let's increment the
@@ -189,7 +191,6 @@ void __ISR(_UART2_VECTOR, ipl7) IntUart2Handler(void)
 		// searching for our next string
 		else
 		{
-		    mLED_3_Toggle();
 		    bad_data_total++;
 		    bad_data++;
 
@@ -202,7 +203,6 @@ void __ISR(_UART2_VECTOR, ipl7) IntUart2Handler(void)
 		    {
 			midstring_flag = 0;
 			header_flag = 0;
-			mLED_2_Toggle();
 		    }
 		}		  
 	    }
@@ -241,7 +241,7 @@ void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl6) CheckPosition_r()
 		
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC2);
-    /* mLED_2_Toggle(); */
+    mLED_2_Toggle();
     // Now we can perform logic to determine which direction we are going and we can increment counter
     if(tempA)
     {
@@ -266,7 +266,7 @@ void __ISR(_INPUT_CAPTURE_5_VECTOR, ipl6) CheckPosition_l()
 		
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC5);
-    /* mLED_3_Toggle(); */
+    mLED_3_Toggle();
     // Now we can perform logic to determine which direction we are going and we can increment counter
     if(tempA)
     {
@@ -315,13 +315,38 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl6) CheckPosition_t()
 void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics(void)
 {
     static int check_count = 0;
+    static int timeout_count = 0;
     float Vr = 0.0;
     float Vl = 0.0;
     float Vt = 0.0;
     float omega = 0.0;
     float R = 0.0;
     float dt = 0.0;
-	
+
+    timeout_count++;
+    // Is it time to check for a data timeout?
+    if (timeout_count >= frequency/timeout_frequency)
+    {
+	timeout_count = 0;
+	// If any motor is running, and timeout_flag is high, we are going to reset:
+	if (timeout_flag == 1)
+	{
+	    if( (fabs(left_desired) >= 0.1) || (fabs(right_desired) >= 0.1)
+		|| (fabs(top_desired) >= 0.1))
+	    {
+		// Reset!
+		SoftReset();
+		asm("nop");
+		asm("nop");
+		asm("nop");
+		asm("nop");
+		asm("nop");
+		asm("nop");		
+	    }
+	}
+	timeout_flag = 1;v
+    }
+    	
     // Let's first calculate the current angular velocity of each wheel:
     left_speed = convert*((float) (left_steps-left_steps_last));
     right_speed = convert*((float) (right_steps-right_steps_last));
@@ -1150,3 +1175,4 @@ int Data_Checker(unsigned char* buff)
     }
     return i;
 }
+
