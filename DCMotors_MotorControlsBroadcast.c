@@ -2,124 +2,6 @@
 Jarvis Schultz and Marcus Hammond
 8-25-2010
 
-This source file contains the primary code that was written for 
-controlling a differential drive mobile robot that was created as a 
-"puppeteer" for the puppet people project at Disney Research.  The user 
-sends serial commands wirelessly through the use of an XBee 
-(1 stop bit, no parity bits, no flow control, 115200 baud), and 
-this library can interpret the commands.  It is designed to work 
-on a PIC32MX460F512L.
-
-Each string that the user sends to the robot contains fifteen 
-eight bit characters.  The most significant character is basically
-a header character that lets the robot know what kind of instruction 
-it is receiving.  
-
-While the robot is executing the received commands a timer 2 interrupt
-service routine is called at some set frequency that updates the robot's
-current pose using dead reckoning.  The dead reckoning provides the location
-(in x and y coordinates) of the center of the robot, and the angle between the
-front of the robot and the positive x-axis (ccw rotation is considered to be 
-positive, and the angle is in the range of 0-2pi radians).
-The code is designed to be almost entirely inerrupt based.  
-This leaves the CPU mostly free to be doing other types of calculations.
-
-There are two overarching "modes" of operation.  In the first mode,
-the user simply specifies the direction of rotation and speed that is
-desired for each wheel.  This mode is useful if all of the commands 
-that are desired for the wheels are being executed on user's end. 
-The second mode allows the user to simply specify a desired position and 
-orientation that the robot should acheive, and the robot will use 
-its dead reckoning in order to drive to that configuration.  During 
-either of these modes of operation, the user also has the ability to 
-send additional information to the robot.  Corrected position and 
-orientation can be sent; this is useful if, for example, a camera is
-being used as a feedback device.  Also, the user can send an instruction
-that stops the robot where it is and defines its current location as the
-new origin of the global coordinate system.  
-
-Below is a summary of each instuction that the user can send along with
-information about what the robot will do when it receives the instruction.
-
-1)  Configuration Control:
-	This is the mode described above where the user specifies a desired 
-	configuration for the robot, and it begins driving there.  The motion
-	is broken into three sections, an initial rotation that gets the robot 
-	oriented such that it can begin driving towards the final location, a
-	straight drive towards the final location, and a final rotation to
-	the final desired orientation.  The robot decides which direction to
-	rotate at both ends and whether to drive forwards or backwards based 
-	on which combination requires the least distance of driving.  If while
-	executing one of these point commands, a new instruction is received, 
-	the robot immediately disregards the old instruction and starts the new.
-	This previous statement is true regardless of what type the new instruction 
-	is.  If the robot receives an update as to what its current configuration
-	is while executing the configuration command, it immediately recalculates 
-	what it must do to finish the command and then continues until it is done.
-	The string that should be sent contains the following characters:
-	Char 1 -			'p' this tells the robot that this command is a point command
-	Char 2 -			'0' or '1' this tells the robot the sign of the x-location desired
-							a zero indicates negative, and a one inicates positive
-	Char 3,4,5,6 - 		These four characters are the desired x-location in inches.  Char 3 is the
-							tens digit, 4 is the ones digit, 5 is the tenths, and 6 is the hundredths
-	Char 7 -			'0' or '1' this tells the robot the sign of the y-location desired
-							a zero indicates negative, and a one inicates positive
-	Char 8,9,10,11-		These four characters are the desired y-location in inches.  Char 3 is the
-							tens digit, 4 is the ones digit, 5 is the tenths, and 6 is the hundredths
-	Char 12,13,14,15 -	These final four characters are the desired final orientation (between 0 and 
-							2pi radians).  Char 12 is the ones digit, and the final three are the 
-							tenths, hundredths, and thousandths respectively.
-							
-2) Wheel Speed Control:
-	In this mode, the user simply specifies the direction and speed of each wheel. 
-	The robot will continue performing the desired action until told to stop or change.
-	The string sent by the user is as follows:
-	Char 1 -			'h' This char tells the robot that this is a speed instruction
-	Char 2 - 			'0' or '1' direction of the left wheel, a one makes the robot go forward and a zero
-							backwards
-	Char 3,4,5,6 - 		The next four chars are the angular velocity of the left wheel in rad/s e.g. 1234 = 12.34 rad/s
-	Char 6 - 			'0' or '1' direction of the right wheel, a one makes the robot go forward and a zero
-							backwards
-	Char 7,8,9,10 - 	The next four chars are the angular velocity of the right wheel in rad/s e.g. 1234 = 12.34 rad/s						
-	The remaining chars can be anything, but they need to be something so that we fill the 15 char in-buffer.
-
-	
-
-3) Corrected Configuration:
-	This simply changes what the robot thinks its current configuration is.  Useful for setting the robot's initial
-	location at something other than (0,0,0), or correcting its dead reckoning with feedback.  The first char is an
-	'l', and the rest of the string follows the exact same format as the configuration control mode.	
-	
-4) Reset Coordinate System:
-	This stops the robot and resets its odometry (effectively translating the global coordinate system to the 
-	robot's center and rotating it to align then positive x-axis with the front of the robot).  This is an 'r'
-	followed by 14 random chars.
-	
-5) Change Default Speed:
-	When running location control, the robot simply uses a global variable 'speed' as the speed of its wheels.
-	This command changes this speed.  The first char is an 's', the next char is garbage, the next four are the 
-	default wheel rotation speed in rad/s.  This uses the same format as the wheel velocity control strings.
-	
-6) Top Motor Control:
-	The puppeteer is equipped with a third motor that actuates a winch that controls a marionette string. There is
-	a single type of data string for interfacing with this motor.  A summary of the characters follows:
-	Char 1 - This char is a 't' to let the robot know we are controlling the top motor
-	Char 2 - Either a '0' or a '1'.  A '0' implies that we want to be doing position control at a default
-				rotation speed specified in the data string.  A '1' just means we want to move at a set
-				velocity.
-	Char 3,4,5,6,7 - This 5 character section contains the speed information. Char 3 is the direction;
-						'1' is up, '0' is down.  The other four are the standard rad/s velocity command.
-	Char 8,9,10,11,12 - This 5 character section contains the position information.  Char 8 is the sign
-							of the location we want the end of the string to end up at; '1' is positive.
-							The next four contain the actual position info. 1234 = 12.34 inches.
-							If we are just doing velocity control, this data is ignored.
-	
-7) Stop Command:	
-	This command stops the robot from moving.  The primary difference between this
-	command and the command for setting the speed to zero is the stopping of the h-bridges.  The difference between
-	this and the reset coordinate system is that this leaves the global coordinate system alone.  This string is a 'q', 
-	followed by 14 unimportant chars.
-
 **************************************************************/
 
 
@@ -158,7 +40,7 @@ information about what the robot will do when it receives the instruction.
 #define MAX_RESOLUTION	3999	       // Proportional to period of PWM (represents the maximum 
 				       // number that we can use for PWM function)
 #define ERROR_DEADBAND	0.05           // This is a deadband where we do nothing to the motors
-#define DATA_LENGTH     18             // This is the length of a data string
+#define DATA_LENGTH     12             // This is the length of a data string
 #define PI  3.141592653                // This is a numerical constant for pi
 #define frequency  1500 	       // Let's check the kinematics this many times per second
 #define GEARRATIO  (19.0*(3.0/4.0))    // The gear ratio of the gearhead on the DC motor
@@ -167,6 +49,8 @@ information about what the robot will do when it receives the instruction.
 #define convert (PI/(CPR*dtbase*GEARRATIO)) // For converting angular wheel and motor velocities
 #define converttop (convert*(3.0/4.0))
 #define ticktime (2.0/(80000000.0))    // For calculating times since timer ISR's were initially called
+#define MAX_BAD_DATA_TOTAL (10)	       
+#define MAX_BAD_DATA	(3)	       
 
 
 
@@ -193,7 +77,7 @@ static float D = 3.0;			// Diameter of the wheel in inches
 static float front_dist = 1.77;		// Perpendicular distance from axle axis to front of robot in inches
 static float speed = 3.0;		// This is the default wheel revolution rate when in pose control mode (rad/s).
 static float speed_t = 3.0;		// This is the default speed for moving the top motor during position control.
-static unsigned char RS232_In_Buffer[DATA_LENGTH] = "zzzzzzzzzzzzzzzzzz";//  This is an array that is initialized with 
+static unsigned char RS232_In_Buffer[DATA_LENGTH] = "zzzzzzzzzzzz";//  This is an array that is initialized with 
 	                                                    // useless data in it; it is used for temporary 
                                                             // storage of data brought in from the PC on UART2
 static int i = 0;	        // This is for marking the position in the RS232_In_Buffer that we are writing into.
@@ -228,64 +112,116 @@ static float kd = 0.1;		// Gain on the derivative error term
 extern char ID;
 static char BROADCAST = '9';
 
-
+// Add a bunch of variables for communication safety:
+static unsigned char header_list[8]={'p','l','r','h','s','q','t','m'};
+static short int bad_data_total = 0;
+static short int bad_data = 0;
+static short int movement_flag = 0;
+static short int midstring_flag = 0;
 
 /** Interrupt Handler Functions:**************************************************************************************************/
 // UART 2 interrupt handler
 // it is set at priority level 2
 void __ISR(_UART2_VECTOR, ipl7) IntUart2Handler(void)
 {
-    char temp;
+    unsigned char temp;
     // Is this from receiving data?
     if(mU2RXGetIntFlag())
     {
 	// Clear the RX interrupt Flag
 	mU2RXClearIntFlag();
-	
+
 	// Read a char into a temporary variable:
 	temp = ReadUART2();
+
 	// Now we need to determine if the data received is one of
 	// our header characters.  If it is, we will reset the value 
 	// of the buffer counter and flag that we received a header.
-	if(temp == 'p'||temp == 'l'||temp == 'r'||temp == 'h'
-	   ||temp == 's'||temp == 'q'||temp == 't')
+	short int j = 0;
+	if (midstring_flag != 1)
 	{
-	    i = 0;
-	    header_flag = 1;
+	    for(j=0;j<sizeof(header_list);j++)
+	    {
+		if (temp == header_list[j])
+		{
+		    i = 0;
+		    header_flag = 1;
+		    midstring_flag = 1;
+		    break;
+		}
+	    }
 	}
 
-	// Now, we want to check and see if this message is for this specific
-	// robot:
-	if(i == 1 && header_flag == 1 && temp != ID && temp != BROADCAST)
-	{
-		// Then we cancel this command:
-		i = 0;
-		header_flag = 0;
-	}
-	
 	// Regardless of what temp is, let's place it in the in buffer
 	RS232_In_Buffer[i%DATA_LENGTH] = temp;
 		
 	// Now let's increment i
 	i++;
-		
-	// If we have received a complete set of data, let's set the flag to
-	// zero so that we can deal with the data in main
-	if((i-1) == (DATA_LENGTH-1) && header_flag == 1) 
-	{
-	    // If both of these are true, then we can check the checksum:
-	    unsigned int checksum = 0;
-	    short int j = 0;
-	    for(j = 0; j < DATA_LENGTH-1; j++)
-	    	checksum += RS232_In_Buffer[j];
 
+	// If we have received a full-length set of data, let's
+	// validate its integrity by first making sure that the message
+	// is intended for this robot, and then checking the checksum.
+	// If this is not a valid set of data, let's find the first header
+	// and push it to the front of the buffer and start adding on the new
+	// characters at the end.
+	if(i == DATA_LENGTH && header_flag == 1)
+	{
+	    unsigned int checksum = 0;
+	    for(j = 0; j < DATA_LENGTH-1; j++)
+		checksum += RS232_In_Buffer[j];
 	    checksum = 0xFF-(checksum & 0xFF);
 
-	    if(checksum == RS232_In_Buffer[DATA_LENGTH-1])
+	    if (RS232_In_Buffer[1] == ID || RS232_In_Buffer[1] == BROADCAST)
 	    {
-		data_flag = 1;
-		mLED_1_Toggle();
+		// If either of these are true, then we can check the checksum:
+		if(checksum == RS232_In_Buffer[DATA_LENGTH-1])
+		{
+		    data_flag = 1;
+		    mLED_1_Toggle();
+		    midstring_flag = 0;
+		    bad_data = 0;
+		}
+		// If checksum is bad, we have found a set of data intended for
+		// this robot that is corrupt in some way.  Let's increment the
+		// bad data counter, and push the next header to the top of the
+		// buffer.  If there is no other headers in the buffer, we clear
+	        // the header_flag and the midstring flag so that we can start
+		// searching for our next string
+		else
+		{
+		    mLED_3_Toggle();
+		    bad_data_total++;
+		    bad_data++;
+
+		    short int new_pos = 0;
+		    // Let's check to see if there is a new header in the buffer
+		    new_pos = Data_Checker(RS232_In_Buffer);
+
+		    if (new_pos != 0) i = new_pos;
+		    else
+		    {
+			midstring_flag = 0;
+			header_flag = 0;
+			mLED_2_Toggle();
+		    }
+		}		  
 	    }
+	    else
+	    {
+		midstring_flag = 0;
+		header_flag = 0;
+	    }
+	}
+	// If we have too much bad data, let's quit!
+	if (bad_data_total >= MAX_BAD_DATA_TOTAL || bad_data >= MAX_BAD_DATA)
+	{
+	    SoftReset();
+	    asm("nop");
+	    asm("nop");
+	    asm("nop");
+	    asm("nop");
+	    asm("nop");
+	    asm("nop");
 	}
     }
 
@@ -305,7 +241,7 @@ void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl6) CheckPosition_r()
 		
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC2);
-    mLED_2_Toggle();
+    /* mLED_2_Toggle(); */
     // Now we can perform logic to determine which direction we are going and we can increment counter
     if(tempA)
     {
@@ -330,7 +266,7 @@ void __ISR(_INPUT_CAPTURE_5_VECTOR, ipl6) CheckPosition_l()
 		
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC5);
-    mLED_3_Toggle();
+    /* mLED_3_Toggle(); */
     // Now we can perform logic to determine which direction we are going and we can increment counter
     if(tempA)
     {
@@ -981,29 +917,45 @@ void PoseUpdate(void)
     char data;   	// This is the very first entry in the in buffer (the header byte)
     char dir_left;	// The direction of the left wheel that was sent
     char dir_right;	// The direction of the right wheel that was sent
-    char dir_top;	
+    char dir_top;	// Top motor direction
 		
     // Set the current byte of the RS232_In_Buffer to be equal to data:
     data = RS232_In_Buffer[0];
 
+    // First, let's check to see if we are actually moving yet:
+    if (movement_flag == 0 && data == 'm')
+    {
+    	short int j;
+    	for(j=2;j<DATA_LENGTH-1;j++)
+    	{
+    	    if (RS232_In_Buffer[j] != 0)
+	    {
+		movement_flag = 0;
+		break;
+	    }
+	    else movement_flag = 1;
+    	}
+    }
+    if (movement_flag == 0)
+    {
+	INTEnable(INT_OC5, 1);
+	INTEnable(INT_OC2, 1);	
+	INTEnable(INT_OC3, 1);
+	INTEnable(INT_IC4, 1);
+	INTEnable(INT_IC2, 1);
+	INTEnable(INT_IC5, 1);
+	INTEnable(INT_U2RX, 1);
+	return;
+    }
+    
     // If the header is a 'p', we have received an instruction for where to go:
     if (data == 'p')
     {
 	exec_state = 2;
-	// Now let's convert the 15 bytes of chars into useful data
-	x_sign = RS232_In_Buffer[2];
-	sscanf(&RS232_In_Buffer[3],"%4f",&x_sent);
-	x_sent = x_sent/100.0;
 
-	y_sign = RS232_In_Buffer[7];
-	sscanf(&RS232_In_Buffer[8],"%4f",&y_sent);
-	y_sent = y_sent/100.0;
-
-	sscanf(&RS232_In_Buffer[12],"%4f",&ori_sent);
-	ori_sent = ori_sent/1000.0;
-
-	if(x_sign == '0') x_sent = -x_sent;
-	if(y_sign == '0') y_sent = -y_sent;
+	x_sent = InterpNumber(&RS232_In_Buffer[2]);
+	y_sent = InterpNumber(&RS232_In_Buffer[5]);
+	ori_sent = InterpNumber(&RS232_In_Buffer[8]);
 		
 	// Let's set pose_flag so that we know we need to call SetPose()
 	pose_flag = 1;
@@ -1013,20 +965,10 @@ void PoseUpdate(void)
     // robot's current location.
     else if(data == 'l')
     {
-	x_sign = RS232_In_Buffer[2];
-	x_pos = ((float)(1000*((int) RS232_In_Buffer[3]-48)+
-			  100*((int) RS232_In_Buffer[4]-48)+10*((int) RS232_In_Buffer[5]-48)+
-			  ((int) RS232_In_Buffer[6]-48)))/100.0;
-	y_sign = RS232_In_Buffer[7];
-	y_pos = ((float)(1000*((int) RS232_In_Buffer[8]-48)+
-			  100*((int) RS232_In_Buffer[9]-48)+10*((int) RS232_In_Buffer[10]-48)+
-			  ((int) RS232_In_Buffer[11]-48)))/100.0;
-	theta = ((float)(1000*((int) RS232_In_Buffer[12]-48)+
-			    100*((int) RS232_In_Buffer[13]-48)+10*((int) RS232_In_Buffer[14]-48)+
-			    ((int) RS232_In_Buffer[15]-48)))/1000.0;
-
-	if(x_sign == '0') x_pos = -x_pos;
-	if(y_sign == '0') y_pos = -y_pos;
+	
+	x_pos = InterpNumber(&RS232_In_Buffer[2]);
+	y_pos = InterpNumber(&RS232_In_Buffer[5]);
+	theta = InterpNumber(&RS232_In_Buffer[8]);	
 		
 	// So, we have just received an updated position and orientation, we need to 
 	// decide if it is worth it to fix the error.
@@ -1064,28 +1006,14 @@ void PoseUpdate(void)
 	while(BusyUART2());
 	putsUART2("Coordinate System Reset\r\n");
     }
-    // If we receive an h as the header char, then that means that we will simply control the wheel speeds
+    // If we receive an h as the header char, then that means that we will simply control the motor speeds
     else if (data == 'h')
     {
 	exec_state = 1;
+	left_desired = InterpNumber(&RS232_In_Buffer[2]);
+	right_desired = InterpNumber(&RS232_In_Buffer[5]);	
+	top_desired = InterpNumber(&RS232_In_Buffer[8]);
 
-	dir_left = RS232_In_Buffer[2];
-	sscanf(&RS232_In_Buffer[3],"%4f",&left_desired);
-	left_desired = left_desired/100.0;
-
-	dir_right = RS232_In_Buffer[7];
-	sscanf(&RS232_In_Buffer[8],"%4f",&right_desired);
-	right_desired = right_desired/100.0;
-
-	dir_top = RS232_In_Buffer[12];
-	sscanf(&RS232_In_Buffer[13],"%4f",&top_desired);
-	top_desired = top_desired/100.0;
-
-	// Here we need to calculate the motor speeds and set them	
-	if(dir_left == '0') left_desired = -left_desired;		
-	if(dir_right == '0') right_desired = -right_desired;
-	if(dir_top == '0') top_desired = -top_desired;			
-		
 	// We just received commands for explicitly controlling the wheel speeds, let's force the pose control
 	// to stop executing:
 	height_flag = 0;
@@ -1093,8 +1021,7 @@ void PoseUpdate(void)
     }
     else if (data == 's')
     {
-	sscanf(&RS232_In_Buffer[3],"%4f",&speed);
-	speed = speed/100.0;
+	speed = InterpNumber(&RS232_In_Buffer[2]);
 	while(BusyUART2());
 	putsUART2("Changed Default Speed\r\n");
     }
@@ -1110,20 +1037,16 @@ void PoseUpdate(void)
     	char top_state;
     	// Get what mode we are in:
     	top_state = RS232_In_Buffer[2];
-  	sscanf(&RS232_In_Buffer[4],"%4f",&top_desired);
-	top_desired = top_desired/100.0;
+ 	top_desired = InterpNumber(&RS232_In_Buffer[4]);
 		
     	if(top_state == '0')
     	{
     	    // If this is a zero, we are doing height control.
-    	    // Get the sign of the height:
-    	    dir_top = RS232_In_Buffer[8];
-    	    // Get the height:
-	    sscanf(&RS232_In_Buffer[9],"%4f",&height_sent);
-	    height_sent = height_sent/100.0;
-    	    // Do we need to get the negative of the height?
-    	    if(dir_top == '0') height_sent = -height_sent;
-    	    // Now, do we need to move up or down?
+
+	    // Get the height:
+	    height_sent = InterpNumber(&RS232_In_Buffer[9]);
+
+	    // Now, do we need to move up or down?
     	    if(height_sent <= height) top_desired = -top_desired;
     	    // Let's set the position control flag:
     	    height_flag = 1;
@@ -1131,9 +1054,7 @@ void PoseUpdate(void)
     	else if(top_state == '1')
     	{
     	    // If this is a one, we are just controlling speed:
-    	    dir_top = RS232_In_Buffer[3];
-    	    if(dir_top == '0') top_desired = -top_desired;
-    	    height_flag = 0;
+       	    height_flag = 0;
     	}
     }
 	
@@ -1150,9 +1071,9 @@ void PoseUpdate(void)
 void RuntimeOperation(void)
 {
     // If the buffer has just filled, and we know we received a good
-    // set of data (because it began with a header bit and was 14 chars), 
-    // let's call our functions that interpret and execute the received 
-    // data
+    // set of data (because it began with a header bit and was full
+    // length chars and the checksum was correct), let's call our
+    // functions that interpret and execute the received data
     if(data_flag == 1) PoseUpdate();
 	
     // If we are currently controlling pose, lets call that function
@@ -1180,7 +1101,52 @@ void SendDataBuffer(const char *buffer, UINT32 size)
         ; 
 } 
 
+/* This function is for interpreting the number received over UART2 */
+/* Right now, three characters make up a full number, the least */
+/* significant bits of these chars concantenated form a divisor and
+ * the rest are stuck together to form a 21 bit signed integer.  The
+ * divisor then converts this to a float. */
+float InterpNumber(const unsigned char *data)
+{
+    unsigned int num1 = 0;
+    int num2 = 0;
+    float numf = 0.0;
+    short int c1 = 0;
+    short unsigned int c2, c3;
+    short unsigned int divisor = 1;
 
+    // First, let's get the numeric values of each char:
+    c1 = (short int) *(data);
+    c2 = (short unsigned int) *(data+1);
+    c3 = (short unsigned int) *(data+2);
+    divisor = (((short unsigned int) *(data+2)) & 0x07);
+    num1 = ((((c1<<16)&0xFF0000)+((c2<<8)&0x00FF00)+(c3)))<<11;
+    num2 = ((int) (num1))>>14;
+    numf = ((float) num2)/(powf((float) 10.0,(float) divisor));
 
+    return numf;
+}
 
+int Data_Checker(unsigned char* buff)
+{
+    short int j = 0;
+    short int k = 0;
+    short int i = 0;
+    unsigned char temp[DATA_LENGTH];
 
+    for (k=1; k<DATA_LENGTH; k++)
+    {
+	for (j=0; j<sizeof(header_list); j++)
+	{
+	    if(buff[k] == header_list[j])
+	    {
+		i = DATA_LENGTH-k;
+		memcpy(temp, &buff[k], i);
+		memset(buff,'z',DATA_LENGTH);
+		memcpy(buff, temp, i);
+		return i;
+	    }
+	}
+    }
+    return i;
+}
