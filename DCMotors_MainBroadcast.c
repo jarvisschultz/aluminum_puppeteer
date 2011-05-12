@@ -38,7 +38,7 @@ XBee network during initialization.
 #define TOGGLES_PER_SEC	       1000
 #define CORE_TICK_RATE	       (SYS_FREQ/2/TOGGLES_PER_SEC)
 #define UART_TIMEOUT	       (2100000)
-#define ID_ADDRESS	       (0x9D07CFF0)
+#define ID_ADDRESS	       (0x9D07CFD0)
 #define ID_ADDRESS_FLAG	       (0x9D07CFE0)
 char ID, ID_flag;
 unsigned int *ptr_ID, *ptr_ID_flag;
@@ -86,7 +86,7 @@ int main()
 	// Turn off JTAG so we get the pins back
  	mJTAGPortEnable(0);
 	// Initialize the LED's:
-	mInitAllLEDs();		
+	mInitAllLEDs();
 	// Initialize the PWM pins:
 	InitMotorPWM();
 	// Initialize UART Communication
@@ -131,24 +131,33 @@ int main()
 	while(BusyUART2());
 	putsUART2("\n\r");
 
-
 	// Initialize the second timer for checking kinematics:
 	InitTimer2();
+	// Initialize the fourth timer for data string timeouts:
+	InitTimer4();
 	// Initialize the Encoders:
 	InitEncoder();
-
+	// Initialize Watchdog Timer
+	ClearEventWDT();
+	DisableWDT();
+	EnableWDT();
+	
 	while(1)
 	{
 		// We simply call this function repeatedly, and it executes
 		// the main libraries written for the mobile robot
 		RuntimeOperation();
 		j++;
-		if(j%500000 == 0) mLED_4_Toggle();    
+		if(j%500000 == 0) mLED_4_Toggle();
+
+		// To ensure that the PIC code is not stuck somehow, we
+		// use a watchdog timer. Let's reset it here:
+		ClearWDT();
 	}
-	CloseOC1();
+	CloseOC5();
 	CloseOC2();
 	CloseOC3();
-	CloseIC1();
-	CloseIC3();
+	CloseIC4();
+	CloseIC2();
 	CloseIC5();
 }

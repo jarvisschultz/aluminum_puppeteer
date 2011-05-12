@@ -8,6 +8,7 @@ Jarvis Schultz and Marcus Hammond
 
 /** Includes ************************************************/
 #include "HardwareProfile.h"
+#include <plib.h>
 #include <Compiler.h>
 #include <math.h>
 #include <stdlib.h>
@@ -30,6 +31,7 @@ Jarvis Schultz and Marcus Hammond
 #define REVERSE		1
 #define T2options	T2_ON | T2_PS_1_2 | T2_SOURCE_INT  	// These are the setup options for timer two (CheckKinematics)
 #define T3options 	T3_ON | T3_PS_1_1 | T3_SOURCE_INT  	// These are the setup options for timer three (Motor PWM Period)
+#define T4options 	T4_ON | T4_PS_1_256 | T4_SOURCE_INT  	// These are the setup options for timer three (Motor PWM Period)
 #define BAUDRATE	(115200)				// This is the rate that we will communicate over RS232 at
 #define CHANNEL_A_L	PORTDbits.RD12
 #define CHANNEL_B_L	PORTDbits.RD13
@@ -43,15 +45,18 @@ Jarvis Schultz and Marcus Hammond
 #define DATA_LENGTH     12             // This is the length of a data string
 #define PI  3.141592653                // This is a numerical constant for pi
 #define frequency  1500 	       // Let's check the kinematics this many times per second
-#define GEARRATIO  (19.0*(3.0/4.0))    // The gear ratio of the gearhead on the DC motor
+/* #define GEARRATIO  (19.0*(3.0/4.0))    // The gear ratio of the gearhead on the DC motor */
+#define GEARRATIO  (19.0*(46.0/42.0))    // The gear ratio of the gearhead on the DC motor
 #define CPR  100.0	               // The number of counts per revolution of the motor's encoder
 #define dtbase (1.0/frequency)         // The period of CheckKinematics calls
 #define convert (PI/(CPR*dtbase*GEARRATIO)) // For converting angular wheel and motor velocities
-#define converttop (convert*(3.0/4.0))
+/* #define converttop (convert*(3.0/4.0))      // For the original puppeteers */
+#define converttop (convert*(46.0/42.0))      // For the aluminum puppeteers
 #define ticktime (2.0/(80000000.0))    // For calculating times since timer ISR's were initially called
 #define MAX_BAD_DATA_TOTAL (10)	       
 #define MAX_BAD_DATA	(3)
-#define timeout_frequency (2)
+#define MAX_BAD_COUNTER  (200)
+#define timeout_frequency (10)
 
 
 
@@ -81,6 +86,7 @@ static float speed_t = 3.0;		// This is the default speed for moving the top mot
 static unsigned char RS232_In_Buffer[DATA_LENGTH] = "zzzzzzzzzzzz";//  This is an array that is initialized with 
 	                                                    // useless data in it; it is used for temporary 
                                                             // storage of data brought in from the PC on UART2
+static unsigned char Command_String[DATA_LENGTH] = "zzzzzzzzzzzz";
 static int i = 0;	        // This is for marking the position in the RS232_In_Buffer that we are writing into.
 static int data_flag = 0;  	// This variable is used for telling if we have received updated information about the robot's
                                 // current position or current instructions.  If we have, we break out of the current control loop
@@ -120,10 +126,12 @@ static short int bad_data = 0;
 static short int movement_flag = 0;
 static short int midstring_flag = 0;
 static short int timeout_flag = 0;
+static short int bad_data_counter = 0;
+
 /** Interrupt Handler Functions:**************************************************************************************************/
 // UART 2 interrupt handler
 // it is set at priority level 2
-void __ISR(_UART2_VECTOR, ipl7) IntUart2Handler(void)
+void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 {
     unsigned char temp;
     // Is this from receiving data?
@@ -158,7 +166,14 @@ void __ISR(_UART2_VECTOR, ipl7) IntUart2Handler(void)
 		
 	// Now let's increment i
 	i++;
+	// Also increment bad_data_counter
+	bad_data_counter++;
 
+	static int bytecount = 0;
+	bytecount++;
+
+	if(bytecount%10000 == 0) mLED_2_Toggle();
+	
 	// If we have received a full-length set of data, let's
 	// validate its integrity by first making sure that the message
 	// is intended for this robot, and then checking the checksum.
@@ -181,7 +196,9 @@ void __ISR(_UART2_VECTOR, ipl7) IntUart2Handler(void)
 		    mLED_1_Toggle();
 		    midstring_flag = 0;
 		    bad_data = 0;
+		    bad_data_counter = 0;
 		    timeout_flag = 0;
+		    memcpy(Command_String, RS232_In_Buffer, DATA_LENGTH);
 		}
 		// If checksum is bad, we have found a set of data intended for
 		// this robot that is corrupt in some way.  Let's increment the
@@ -215,13 +232,12 @@ void __ISR(_UART2_VECTOR, ipl7) IntUart2Handler(void)
 	// If we have too much bad data, let's quit!
 	if (bad_data_total >= MAX_BAD_DATA_TOTAL || bad_data >= MAX_BAD_DATA)
 	{
-	    SoftReset();
-	    asm("nop");
-	    asm("nop");
-	    asm("nop");
-	    asm("nop");
-	    asm("nop");
-	    asm("nop");
+	    Reset_Robot();
+	}
+
+	if (bad_data_counter >= MAX_BAD_COUNTER)
+	{
+	    Reset_Robot();
 	}
     }
 
@@ -233,7 +249,7 @@ void __ISR(_UART2_VECTOR, ipl7) IntUart2Handler(void)
 }
 
 // This is the ISR that gets called when we detect a rising or falling edge on CHANNEL_A_R
-void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl6) CheckPosition_r()
+void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl5) CheckPosition_r()
 {
     static int tempA, tempB;
     tempA = CHANNEL_A_R;
@@ -241,7 +257,7 @@ void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl6) CheckPosition_r()
 		
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC2);
-    mLED_2_Toggle();
+    /* mLED_2_Toggle(); */
     // Now we can perform logic to determine which direction we are going and we can increment counter
     if(tempA)
     {
@@ -258,7 +274,7 @@ void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl6) CheckPosition_r()
 }
 
 // This is the ISR that gets called when we detect a rising or falling edge on CHANNEL_A_L
-void __ISR(_INPUT_CAPTURE_5_VECTOR, ipl6) CheckPosition_l()
+void __ISR(_INPUT_CAPTURE_5_VECTOR, ipl5) CheckPosition_l()
 {
     static int tempA, tempB;
     tempA = CHANNEL_A_L;
@@ -266,7 +282,7 @@ void __ISR(_INPUT_CAPTURE_5_VECTOR, ipl6) CheckPosition_l()
 		
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC5);
-    mLED_3_Toggle();
+    /* mLED_3_Toggle(); */
     // Now we can perform logic to determine which direction we are going and we can increment counter
     if(tempA)
     {
@@ -284,7 +300,7 @@ void __ISR(_INPUT_CAPTURE_5_VECTOR, ipl6) CheckPosition_l()
 
 
 // This is the ISR that gets called when we detect a rising or falling edge on CHANNEL_A_T
-void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl6) CheckPosition_t()
+void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl5) CheckPosition_t()
 {
     static int tempA, tempB;
     tempA = CHANNEL_A_T;
@@ -308,26 +324,12 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl6) CheckPosition_t()
 }
 
 
-//  In the following function, we will be updating the robot's pose 
-//  using forward kinematics and odometry data.  We will also decide 
-//  if we new controls are needed to be sent to the wheels so that 
-//  the robot can continue to do what it is supposed to be doing.
-void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics(void)
+void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout(void)
 {
-    static int check_count = 0;
     static int timeout_count = 0;
-    float Vr = 0.0;
-    float Vl = 0.0;
-    float Vt = 0.0;
-    float omega = 0.0;
-    float R = 0.0;
-    float dt = 0.0;
-
     timeout_count++;
-    // Is it time to check for a data timeout?
-    if (timeout_count >= frequency/timeout_frequency)
+    if (timeout_count%5 == 0)
     {
-	timeout_count = 0;
 	// If any motor is running, and timeout_flag is high, we are going to reset:
 	if (timeout_flag == 1)
 	{
@@ -335,18 +337,29 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics(void)
 		|| (fabs(top_desired) >= 0.1))
 	    {
 		// Reset!
-		SoftReset();
-		asm("nop");
-		asm("nop");
-		asm("nop");
-		asm("nop");
-		asm("nop");
-		asm("nop");		
+		Reset_Robot();
 	    }
 	}
-	timeout_flag = 1;v
+	timeout_flag = 1;
+	
     }
-    	
+    mT4ClearIntFlag();
+}
+
+//  In the following function, we will be updating the robot's pose 
+//  using forward kinematics and odometry data.  We will also decide 
+//  if we new controls are needed to be sent to the wheels so that 
+//  the robot can continue to do what it is supposed to be doing.
+void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics(void)
+{
+    static int check_count = 0;
+    float Vr = 0.0;
+    float Vl = 0.0;
+    float Vt = 0.0;
+    float omega = 0.0;
+    float R = 0.0;
+    float dt = 0.0;
+
     // Let's first calculate the current angular velocity of each wheel:
     left_speed = convert*((float) (left_steps-left_steps_last));
     right_speed = convert*((float) (right_steps-right_steps_last));
@@ -711,7 +724,7 @@ void InitEncoder(void)
     // - Capture rising edge first
     OpenCapture5( IC_EVERY_EDGE | IC_INT_1CAPTURE | IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
     // Configure the interrupt options
-    ConfigIntCapture5(IC_INT_ON | IC_INT_PRIOR_6);
+    ConfigIntCapture5(IC_INT_ON | IC_INT_PRIOR_5);
 	
     // Now we can configure the CHANNEL_A_R pin (D9) to be an input capture pin:
     // - Capture Every edge
@@ -720,7 +733,7 @@ void InitEncoder(void)
     // - Capture rising edge first
     OpenCapture2( IC_EVERY_EDGE | IC_INT_1CAPTURE | IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
     // Configure the interrupt options
-    ConfigIntCapture2(IC_INT_ON | IC_INT_PRIOR_6);
+    ConfigIntCapture2(IC_INT_ON | IC_INT_PRIOR_5);
 	
     // Now we can configure the CHANNEL_A_T pin (D11) to be an input capture pin:
     // - Capture Every edge
@@ -729,7 +742,7 @@ void InitEncoder(void)
     // - Capture rising edge first
     OpenCapture4( IC_EVERY_EDGE | IC_INT_1CAPTURE | IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
     // Configure the interrupt options
-    ConfigIntCapture4(IC_INT_ON | IC_INT_PRIOR_6);
+    ConfigIntCapture4(IC_INT_ON | IC_INT_PRIOR_5);
 	
     // Enable system-wide interrupts:
     INTEnableSystemMultiVectoredInt();
@@ -766,8 +779,8 @@ void InitUART2(int pbClk)
     // Open UART2 with config1 and config2
     OpenUART2( config1, config2, pbClk/16/BAUDRATE-1);	// calculate actual BAUD generate value.
 		
-    // Configure UART2 RX Interrupt with priority 7
-    ConfigIntUART2(UART_INT_PR7 | UART_RX_INT_EN);
+    // Configure UART2 RX Interrupt with priority 6
+    ConfigIntUART2(UART_INT_PR6 | UART_RX_INT_EN);
 }								
 
 
@@ -779,6 +792,16 @@ void InitTimer2(void)
     mT2SetIntPriority( 4); 	// set Timer 2 Interrupt Priority
     mT2ClearIntFlag(); 		// clear interrupt flag
     mT2IntEnable( 1);		// enable timer 2 interrupts
+}
+
+void InitTimer4(void)
+{
+    int Per;
+    Per = (80000000/timeout_frequency)/256-1;  // Set the value in the period register
+    OpenTimer4(T4options, Per);	
+    mT4SetIntPriority( 7); 	// set Timer 4 Interrupt Priority
+    mT4ClearIntFlag(); 		// clear interrupt flag
+    mT4IntEnable( 1);		// enable timer 4 interrupts    
 }
 
 
@@ -945,7 +968,7 @@ void PoseUpdate(void)
     char dir_top;	// Top motor direction
 		
     // Set the current byte of the RS232_In_Buffer to be equal to data:
-    data = RS232_In_Buffer[0];
+    data = Command_String[0];
 
     // First, let's check to see if we are actually moving yet:
     if (movement_flag == 0 && data == 'm')
@@ -953,7 +976,7 @@ void PoseUpdate(void)
     	short int j;
     	for(j=2;j<DATA_LENGTH-1;j++)
     	{
-    	    if (RS232_In_Buffer[j] != 0)
+    	    if (Command_String[j] != 0)
 	    {
 		movement_flag = 0;
 		break;
@@ -978,9 +1001,9 @@ void PoseUpdate(void)
     {
 	exec_state = 2;
 
-	x_sent = InterpNumber(&RS232_In_Buffer[2]);
-	y_sent = InterpNumber(&RS232_In_Buffer[5]);
-	ori_sent = InterpNumber(&RS232_In_Buffer[8]);
+	x_sent = InterpNumber(&Command_String[2]);
+	y_sent = InterpNumber(&Command_String[5]);
+	ori_sent = InterpNumber(&Command_String[8]);
 		
 	// Let's set pose_flag so that we know we need to call SetPose()
 	pose_flag = 1;
@@ -991,9 +1014,9 @@ void PoseUpdate(void)
     else if(data == 'l')
     {
 	
-	x_pos = InterpNumber(&RS232_In_Buffer[2]);
-	y_pos = InterpNumber(&RS232_In_Buffer[5]);
-	theta = InterpNumber(&RS232_In_Buffer[8]);	
+	x_pos = InterpNumber(&Command_String[2]);
+	y_pos = InterpNumber(&Command_String[5]);
+	theta = InterpNumber(&Command_String[8]);	
 		
 	// So, we have just received an updated position and orientation, we need to 
 	// decide if it is worth it to fix the error.
@@ -1035,9 +1058,9 @@ void PoseUpdate(void)
     else if (data == 'h')
     {
 	exec_state = 1;
-	left_desired = InterpNumber(&RS232_In_Buffer[2]);
-	right_desired = InterpNumber(&RS232_In_Buffer[5]);	
-	top_desired = InterpNumber(&RS232_In_Buffer[8]);
+	left_desired = InterpNumber(&Command_String[2]);
+	right_desired = InterpNumber(&Command_String[5]);	
+	top_desired = InterpNumber(&Command_String[8]);
 
 	// We just received commands for explicitly controlling the wheel speeds, let's force the pose control
 	// to stop executing:
@@ -1046,7 +1069,7 @@ void PoseUpdate(void)
     }
     else if (data == 's')
     {
-	speed = InterpNumber(&RS232_In_Buffer[2]);
+	speed = InterpNumber(&Command_String[2]);
 	while(BusyUART2());
 	putsUART2("Changed Default Speed\r\n");
     }
@@ -1061,15 +1084,15 @@ void PoseUpdate(void)
     {
     	char top_state;
     	// Get what mode we are in:
-    	top_state = RS232_In_Buffer[2];
- 	top_desired = InterpNumber(&RS232_In_Buffer[4]);
+    	top_state = Command_String[2];
+ 	top_desired = InterpNumber(&Command_String[4]);
 		
     	if(top_state == '0')
     	{
     	    // If this is a zero, we are doing height control.
 
 	    // Get the height:
-	    height_sent = InterpNumber(&RS232_In_Buffer[9]);
+	    height_sent = InterpNumber(&Command_String[9]);
 
 	    // Now, do we need to move up or down?
     	    if(height_sent <= height) top_desired = -top_desired;
@@ -1154,6 +1177,7 @@ float InterpNumber(const unsigned char *data)
 
 int Data_Checker(unsigned char* buff)
 {
+    mLED_3_Toggle();
     short int j = 0;
     short int k = 0;
     short int i = 0;
@@ -1165,14 +1189,44 @@ int Data_Checker(unsigned char* buff)
 	{
 	    if(buff[k] == header_list[j])
 	    {
-		i = DATA_LENGTH-k;
-		memcpy(temp, &buff[k], i);
-		memset(buff,'z',DATA_LENGTH);
-		memcpy(buff, temp, i);
-		return i;
+		if (k == DATA_LENGTH-1)
+		{
+		    i = DATA_LENGTH-k;
+		    memcpy(temp, &buff[k], i);
+		    memset(buff,'z',DATA_LENGTH);
+		    memcpy(buff, temp, i);
+		    return i;
+		}
+		else if (buff[k+1] == ID || buff[k+1] == BROADCAST)
+		{
+		    i = DATA_LENGTH-k;
+		    memcpy(temp, &buff[k], i);
+		    memset(buff,'z',DATA_LENGTH);
+		    memcpy(buff, temp, i);
+		    return i;
+		}   
 	    }
 	}
     }
     return i;
 }
 
+void Reset_Robot(void)
+{
+    // First, let's disable all interrupts:
+    INTDisableInterrupts();
+     
+    // Now, shut down all PWM and endcoder pins:
+    CloseOC1();
+    CloseOC2();
+    CloseOC3();
+   
+    // Now, we can restart robot:
+    SoftReset();
+    asm("nop");
+    asm("nop");
+    asm("nop");
+    asm("nop");
+    asm("nop");
+    asm("nop");
+}

@@ -28,11 +28,17 @@ void InitUART2(int pbClk);				// Function for initializing UART2
 void SetPose(float xdest, float ydest, float thdest);	// This function contains all of the logic for the pose control mode of operation
 void PoseUpdate(void);					// Once we have received a full set of instructions, this function is called to implement them.
 void InitTimer2(void);					// This function initializes timer 2
+void InitTimer4(void);					// This function initializes timer 4
 void RuntimeOperation(void);    			// This function actually executes everything.  It needs to be called repeatedly in the main loop.
 float min(float a, float b);			        // This function returns the minimum value of two floats passed into it.
 void InitMotorPWM(void);				// This initializes the pins that are used for PWM control of the DC motors
 void InitEncoder(void);					// This function initializes the IC pins that are being used for reading encoder pulses
 void SendDataBuffer(const char *buffer, UINT32 size);	// This is a function that is used for sending data over UART2
+
+float InterpNumber(const unsigned char *data);		// This function takes in a pointer to a character array, it then interprets the first three
+							// characters found at that location, and returns a float.
+int Data_Checker(unsigned char* buff);
+void Reset_Robot(void);
 #endif
 
 

@@ -1,7 +1,7 @@
 *~
 build/
 dist/
-objects/
+Objects/
 *.o
 *.hex
 *.map
@@ -12,5 +12,3 @@ procdefs.ld
 *.mcw
 *.mcp
 motdata
-Broadcast.X/
-
