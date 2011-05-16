@@ -18,10 +18,10 @@ PCBVersionRobot.hex : PCBVersionRobot.elf
 	$(CD)$(HX) "PCBVersionRobot.elf"
 
 PCBVersionRobot.elf : $(OBJ)
-	$(CD)$(CC) -mprocessor=32MX460F512L $(OBJ) -o"PCBVersionRobot.elf" -Wl,--defsym=__MPLAB_BUILD=1,-Map="PCBVersionRobot.map"
+	$(CD)$(CC) -mprocessor=32MX460F512L $(OBJ) -v -Wall -o"PCBVersionRobot.elf" -Wl,--defsym=__MPLAB_BUILD=1,-Map="PCBVersionRobot.map"
 
 %.o : %.c $(HDR)
-	$(CD)$(CC) -mprocessor=32MX460F512L -c $< -o $@ -I"/opt/microchip/MicrochipSolutions/Microchip/Include/" -I"." -g
+	$(CD)$(CC) -mprocessor=32MX460F512L -v -Wall -c $< -o $@ -I"/opt/microchip/MicrochipSolutions/Microchip/Include/" -I"." -g
 
 clean : 
 	$(RM) $(OBJ) "PCBVersionRobot.elf" "PCBVersionRobot.hex"

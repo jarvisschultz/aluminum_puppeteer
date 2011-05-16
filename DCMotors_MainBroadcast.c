@@ -45,12 +45,6 @@ unsigned int *ptr_ID, *ptr_ID_flag;
 
 /** User Called Functions *************************************/
 
-void delay(void)
-{
-    long unsigned int num_calls = SYS_FREQ/8;
-    while(num_calls) num_calls--;
-}
-
 // Will currently only work for robots with a node identifier that is
 // less than two character 
 char GetID(void)
@@ -76,88 +70,101 @@ char GetID(void)
 /** Main Function: ********************************************/
 int main()
 {
-	int PbClk; // Frequency of the peripheral bus clock
-	long int j = 0;
+    int PbClk; // Frequency of the peripheral bus clock
+    long int j = 0;
 
-	// Let's set the integer PbClk to be the value of the frequency
-	// of the peripheral bus clock
-	PbClk = SYSTEMConfigPerformance(SYS_FREQ);
+    // Let's set the integer PbClk to be the value of the frequency
+    // of the peripheral bus clock
+    PbClk = SYSTEMConfigPerformance(SYS_FREQ);
 
-	// Turn off JTAG so we get the pins back
- 	mJTAGPortEnable(0);
-	// Initialize the LED's:
-	mInitAllLEDs();
-	// Initialize the PWM pins:
-	InitMotorPWM();
-	// Initialize UART Communication
-	InitUART2(PbClk);
+    // Turn off JTAG so we get the pins back
+    mJTAGPortEnable(0);
+    // Initialize the LED's:
+    mInitAllLEDs();
+    // Initialize the PWM pins:
+    InitMotorPWM();
+    // Initialize UART Communication
+    InitUART2(PbClk);
 
-	// Send feedback to the user:
-	putsUART2("Program Started\r\n\n");
-	while(BusyUART2());
+    // Send feedback to the user:
+    putsUART2("Program Started\r\n\n");
+    while(BusyUART2());
 
-	// Let's set the pointers we initialized to the addresses
-	// defined at the beginning
-	ptr_ID_flag = (void*)ID_ADDRESS_FLAG;
-	ptr_ID = (void*)ID_ADDRESS;
-	// Let's read the value in the flag address:
-	ID_flag = (char) (*ptr_ID_flag);
+    // Let's set the pointers we initialized to the addresses
+    // defined at the beginning
+    ptr_ID_flag = (void*)ID_ADDRESS_FLAG;
+    ptr_ID = (void*)ID_ADDRESS;
+    // Let's read the value in the flag address:
+    ID_flag = (char) (*ptr_ID_flag);
        
-	if(ID_flag != '1' || !swUser)
+    if(ID_flag != '1' || !swUser)
+    {
+	// If either of these are true, then let's read our
+	// address from the XBee
+	mLED_2_Toggle();
+	ID = GetID();
+	mLED_3_Toggle();
+	// Now, store the newly read ID in its memory address
+	NVMWriteWord(ptr_ID , (char) ID);
+	if(NVMIsError())
 	{
-	    // If either of these are true, then let's read our
-	    // address from the XBee
-	    mLED_2_Toggle();
-	    ID = GetID();
-	    mLED_3_Toggle();
-	    // Now, store the newly read ID in its memory address
-	    NVMWriteWord(ptr_ID , (char) ID);
-	    if(NVMIsError())
-	    {
-		mLED_1_Toggle();
-		NVMClearError();
-	    }
-	    // Now, set the flag that says we have read in the memory
-	    // address
-	    NVMWriteWord(ptr_ID_flag, '1');
+	    mLED_1_Toggle();
+	    NVMClearError();
 	}
-	else
-	{
-	    // We just read the ID Value
-	    ID = (char) (*ptr_ID);
-	}
+	// Now, set the flag that says we have read in the memory
+	// address
+	NVMWriteWord(ptr_ID_flag, '1');
+    }
+    else
+    {
+	// We just read the ID Value
+	ID = (char) (*ptr_ID);
+    }
 
-	putcUART2(ID);
-	while(BusyUART2());
-	putsUART2("\n\r");
+    putcUART2(ID);
+    while(BusyUART2());
+    putsUART2("\n\r");
 
-	// Initialize the second timer for checking kinematics:
-	InitTimer2();
-	// Initialize the fourth timer for data string timeouts:
-	InitTimer4();
-	// Initialize the Encoders:
-	InitEncoder();
-	// Initialize Watchdog Timer
-	ClearEventWDT();
-	DisableWDT();
-	EnableWDT();
+    mLED_1_On();
+    mLED_2_On();
+    mLED_3_On();
+    mLED_4_On();
+
+    while(swProgram);
+
+    mLED_1_Off();
+    mLED_2_Off();
+    mLED_3_Off();
+    mLED_4_Off();
+    
+
+    // Initialize the second timer for checking kinematics:
+    InitTimer2();
+    // Initialize the fourth timer for data string timeouts:
+    InitTimer4();
+    // Initialize the Encoders:
+    InitEncoder();
+    // Initialize Watchdog Timer
+    ClearEventWDT();
+    DisableWDT();
+    EnableWDT();
 	
-	while(1)
-	{
-		// We simply call this function repeatedly, and it executes
-		// the main libraries written for the mobile robot
-		RuntimeOperation();
-		j++;
-		if(j%500000 == 0) mLED_4_Toggle();
+    while(1)
+    {
+	// We simply call this function repeatedly, and it executes
+	// the main libraries written for the mobile robot
+	RuntimeOperation();
+	j++;
+	if(j%500000 == 0) mLED_4_Toggle();
 
-		// To ensure that the PIC code is not stuck somehow, we
-		// use a watchdog timer. Let's reset it here:
-		ClearWDT();
-	}
-	CloseOC5();
-	CloseOC2();
-	CloseOC3();
-	CloseIC4();
-	CloseIC2();
-	CloseIC5();
+	// To ensure that the PIC code is not stuck somehow, we
+	// use a watchdog timer. Let's reset it here:
+	ClearWDT();
+    }
+    CloseOC5();
+    CloseOC2();
+    CloseOC3();
+    CloseCapture2();
+    CloseCapture5();
+    CloseCapture4();
 }
