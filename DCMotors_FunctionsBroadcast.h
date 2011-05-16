@@ -37,8 +37,12 @@ void SendDataBuffer(const char *buffer, UINT32 size);	// This is a function that
 
 float InterpNumber(const unsigned char *data);		// This function takes in a pointer to a character array, it then interprets the first three
 							// characters found at that location, and returns a float.
-int Data_Checker(unsigned char* buff);
+int Data_Checker(unsigned char* buff);			// For checking the validity of sent commands
 void Reset_Robot(void);
+void BuildNumber(unsigned char *destination, float value, short int divisor);
+void MakeString(unsigned char *dest, char type, float fval, float sval, float tval, int div);
+void CreateAndSendArray(unsigned short id, unsigned char *DataString);
+void delay(void);
 #endif
 
 
