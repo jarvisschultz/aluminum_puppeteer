@@ -24,7 +24,7 @@ Jarvis Schultz and Marcus Hammond
 /** Defines ***************************************************/
 #define TRUE            1
 #define FALSE		0
-#define DIRECTION_PIN_L	LATDbits.LATD3	
+#define DIRECTION_PIN_L	LATDbits.LATD3
 #define DIRECTION_PIN_R	LATDbits.LATD5
 #define DIRECTION_PIN_T	LATCbits.LATC13
 #define FORWARD		0
@@ -32,7 +32,8 @@ Jarvis Schultz and Marcus Hammond
 #define T2options	T2_ON | T2_PS_1_2 | T2_SOURCE_INT  	// These are the setup options for timer two (CheckKinematics)
 #define T3options 	T3_ON | T3_PS_1_1 | T3_SOURCE_INT  	// These are the setup options for timer three (Motor PWM Period)
 #define T4options 	T4_ON | T4_PS_1_256 | T4_SOURCE_INT  	// These are the setup options for timer three (Motor PWM Period)
-#define BAUDRATE	(115200)				// This is the rate that we will communicate over RS232 at
+/* #define BAUDRATE	(115200)				// This is the rate that we will communicate over RS232 at */
+#define BAUDRATE	(111111)				// This is the rate that we will communicate over RS232 at
 #define CHANNEL_A_L	PORTDbits.RD12
 #define CHANNEL_B_L	PORTDbits.RD13
 #define CHANNEL_A_R	PORTDbits.RD9
@@ -43,13 +44,12 @@ Jarvis Schultz and Marcus Hammond
 				       // number that we can use for PWM function)
 #define ERROR_DEADBAND	0.05           // This is a deadband where we do nothing to the motors
 #define DATA_LENGTH     12             // This is the length of a data string
-#define PI  3.141592653                // This is a numerical constant for pi
-#define frequency  1500 	       // Let's check the kinematics this many times per second
+#define frequency  1500		       // Let's check the kinematics this many times per second
 /* #define GEARRATIO  (19.0*(3.0/4.0))    // The gear ratio of the gearhead on the DC motor */
 #define GEARRATIO  (19.0*(46.0/42.0))    // The gear ratio of the gearhead on the DC motor
 #define CPR  100.0	               // The number of counts per revolution of the motor's encoder
 #define dtbase (1.0/frequency)         // The period of CheckKinematics calls
-#define convert (PI/(CPR*dtbase*GEARRATIO)) // For converting angular wheel and motor velocities
+#define convert (M_PI/(CPR*dtbase*GEARRATIO)) // For converting angular wheel and motor velocities
 /* #define converttop (convert*(3.0/4.0))      // For the original puppeteers */
 #define converttop (convert*(46.0/42.0))      // For the aluminum puppeteers
 #define ticktime (2.0/(80000000.0))    // For calculating times since timer ISR's were initially called
@@ -57,7 +57,7 @@ Jarvis Schultz and Marcus Hammond
 #define MAX_BAD_DATA	(3)
 #define MAX_BAD_COUNTER  (200)
 #define timeout_frequency (10)
-
+#define SYS_FREQ	(80000000L)
 
 
 /** Global Variables **************************************************/
@@ -78,11 +78,10 @@ static float theta = 0.0;		// This variable is what the PIC sees as its current 
 static float height = 0.0;		// This is the height of the end of the string.  This height is never negative, it is the
                                         // height relative to the height set by the string when it is all the way down.
 static float d_pulley = 0.75;           // This is the diameter of the pulley that the string winds onto
-static float L = 5.95/2;		// This is one-half of the robot's track width
+/* static float L = 5.95/2;		// This is one-half of the robot's track width */
+static float L = 5.21/2;		// This is one-half of the robot's track width
 static float D = 3.0;			// Diameter of the wheel in inches
-static float front_dist = 1.77;		// Perpendicular distance from axle axis to front of robot in inches
 static float speed = 3.0;		// This is the default wheel revolution rate when in pose control mode (rad/s).
-static float speed_t = 3.0;		// This is the default speed for moving the top motor during position control.
 static unsigned char RS232_In_Buffer[DATA_LENGTH] = "zzzzzzzzzzzz";//  This is an array that is initialized with 
 	                                                    // useless data in it; it is used for temporary 
                                                             // storage of data brought in from the PC on UART2
@@ -112,7 +111,7 @@ static int exec_state = 0;	        // This variable is to determine which mode o
 static float left_desired;	// This is the desired wheel speed of the left motor in rad/sec sent over RS232
 static float right_desired;	// This is the desired wheel speed of the right motor in rad/sec sent over RS232	
 static float top_desired;	// This is the desired wheel speed of the top motor in rad/sec sent over RS232	
-static UINT8 STR[1024];		// An empty string we use for sending data
+//static UINT8 STR[1024];		// An empty string we use for sending data
 static float kp = 500;		// Gain on the proportional error term
 static float ki = 50;		// Gain on the integral error term
 static float kd = 0.1;		// Gain on the derivative error term
@@ -120,13 +119,29 @@ extern char ID;
 static char BROADCAST = '9';
 
 // Add a bunch of variables for communication safety:
-static unsigned char header_list[8]={'p','l','r','h','s','q','t','m'};
+static unsigned char header_list[10]={'p','l','r','h','s','q','t','m','w','e'};
+/* static unsigned char header_list[8]={'p','l','r','h','s','q','t','m'}; */
+/******************************************************************************/
+// Note that the header characters mean the following:
+//	'p' = Drive to a desired pose
+//	'l' = Re-define the robot's position and orientation
+//	'r' = Stop driving, and re-set the global configuration to the robot's
+//		current pose
+//	'h' = Motor speed command
+//	's' = Change default speed for pose control
+//	'q' = Stop the robot, and reset movement_flag
+//	't' = Controls for the winch motors
+//	'm' = Start command; must receive this before driving can begin
+//	'w' = Current pose request
+//	'e' = Current motor speeds request
+/******************************************************************************/
 static short int bad_data_total = 0;
 static short int bad_data = 0;
 static short int movement_flag = 0;
 static short int midstring_flag = 0;
 static short int timeout_flag = 0;
 static short int bad_data_counter = 0;
+
 
 /** Interrupt Handler Functions:**************************************************************************************************/
 // UART 2 interrupt handler
@@ -169,11 +184,6 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 	// Also increment bad_data_counter
 	bad_data_counter++;
 
-	static int bytecount = 0;
-	bytecount++;
-
-	if(bytecount%10000 == 0) mLED_2_Toggle();
-	
 	// If we have received a full-length set of data, let's
 	// validate its integrity by first making sure that the message
 	// is intended for this robot, and then checking the checksum.
@@ -257,7 +267,7 @@ void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl5) CheckPosition_r()
 		
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC2);
-    /* mLED_2_Toggle(); */
+    /* mLED_2_Toggle();  */
     // Now we can perform logic to determine which direction we are going and we can increment counter
     if(tempA)
     {
@@ -324,7 +334,7 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl5) CheckPosition_t()
 }
 
 
-void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout(void)
+void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout()
 {
     static int timeout_count = 0;
     timeout_count++;
@@ -350,25 +360,29 @@ void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout(void)
 //  using forward kinematics and odometry data.  We will also decide 
 //  if we new controls are needed to be sent to the wheels so that 
 //  the robot can continue to do what it is supposed to be doing.
-void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics(void)
+void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 {
-    static int check_count = 0;
     float Vr = 0.0;
     float Vl = 0.0;
     float Vt = 0.0;
     float omega = 0.0;
     float R = 0.0;
-    float dt = 0.0;
+    /* float dt = 0.0; */
+    int top_current, left_current, right_current;
 
+    left_current = left_steps;
+    right_current = right_steps;
+    top_current = top_steps;
+            
     // Let's first calculate the current angular velocity of each wheel:
-    left_speed = convert*((float) (left_steps-left_steps_last));
-    right_speed = convert*((float) (right_steps-right_steps_last));
-    top_speed = converttop*((float) (top_steps-top_steps_last));
+    left_speed = convert*((float) (left_current-left_steps_last));
+    right_speed = convert*((float) (right_current-right_steps_last));
+    top_speed = converttop*((float) (top_current-top_steps_last));
 	
     // Now let's store the current counts for the next CheckKinematics call:
-    left_steps_last = left_steps;
-    right_steps_last = right_steps;
-    top_steps_last = top_steps;
+    left_steps_last = left_current;
+    right_steps_last = right_current;
+    top_steps_last = top_current;
 	
     // Now, let's calculate the error between the actual and desired velocities 
     float left_error = left_desired-left_speed;
@@ -376,13 +390,13 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics(void)
     float top_error = top_desired-top_speed;
     
     // Now let's calculate how long it has been since this function has been called.
-    dt = ticktime*(((float) ReadTimer2())+1.0)+dtbase;
+    /* dt = ticktime*(((float) ReadTimer2())+1.0)+dtbase; */
 
     // Now, we set the PWM Values:
-    if(fabs(left_error) > ERROR_DEADBAND) SetSpeedLeft(left_error, dt);
-    if(fabs(right_error) > ERROR_DEADBAND) SetSpeedRight(right_error, dt);
-    if(fabs(top_error) > ERROR_DEADBAND) SetSpeedTop(top_error, dt);
-	
+    if(fabs(left_error) > ERROR_DEADBAND) SetSpeedLeft(left_error, dtbase);
+    if(fabs(right_error) > ERROR_DEADBAND) SetSpeedRight(right_error, dtbase);
+    if(fabs(top_error) > ERROR_DEADBAND) SetSpeedTop(top_error, dtbase);
+
     // Now let's get the wheels speeds and convert them into translational velocities
     Vr = (D/2.0)*(right_speed);
     Vl = (D/2.0)*(left_speed);
@@ -395,28 +409,24 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics(void)
     // Now we do the forward kinematics
     if (fabs(R) > 10000.0) // This would imply that the robot is essentially going straight
     {
-	// First let's calculate how long it has been since this function has been called.
-	dt = ticktime*(((float) ReadTimer2())+1.0)+dtbase;
 	// So, let's perform the straight version kinematics
-	x_pos += Vr*dt*cosf(theta);
-	y_pos += Vr*dt*sinf(theta);
+	x_pos += Vr*dtbase*cosf(theta);
+	y_pos += Vr*dtbase*sinf(theta);
     }
     else
     {
-	// First let's calculate how long it has been since this function has been called.
-	dt = ticktime*(((float) ReadTimer2())+1.0)+dtbase;
 	// Now let's perform the general kinematics
-	x_pos += cosf(omega*dt)*R*sinf(theta)+sinf(omega*dt)*R*cosf(theta)-R*sinf(theta);
-	y_pos += sinf(omega*dt)*R*sinf(theta)-cosf(omega*dt)*R*cosf(theta)+R*cosf(theta);
-	theta += omega*dt;
+	x_pos += cosf(omega*dtbase)*R*sinf(theta)+sinf(omega*dtbase)*R*cosf(theta)-R*sinf(theta);
+	y_pos += sinf(omega*dtbase)*R*sinf(theta)-cosf(omega*dtbase)*R*cosf(theta)+R*cosf(theta);
+	theta += omega*dtbase;
     }
 	
     // Let's force theta to be between 0 and 2pi
-    if(theta < 0.0) theta += 2.0*PI;
-    if(theta >= 2.0*PI) theta -= 2.0*PI;	
+    if(theta < 0.0) theta += 2.0*M_PI;
+    if(theta >= 2.0*M_PI) theta -= 2.0*M_PI;	
 	
     // Now, let's update the height of our string
-    height += Vt*dt;
+    height += Vt*dtbase;
 	
     if(height_flag == 1)
     {
@@ -436,7 +446,7 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics(void)
     else if (exec_state == 2)
     {
 	// Now, let's determine if we have reached the desired orientation yet
-	if(fabs(theta-first_angle) <= 0.01 || fabs(fabs(theta-first_angle)-2.0*PI) <= 0.01)
+	if(fabs(theta-first_angle) <= 0.01 || fabs(fabs(theta-first_angle)-2.0*M_PI) <= 0.01)
 	{
 	    theta = first_angle;
 	    exec_state = 3;
@@ -461,7 +471,7 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics(void)
     else if (exec_state == 4)
     {	
 	// Now, let's determine if we have reached the final orientation yet
-	if(fabs(theta-ori_sent) <= 0.01 || fabs(fabs(theta-ori_sent)-2.0*PI) <= 0.01)
+	if(fabs(theta-ori_sent) <= 0.01 || fabs(fabs(theta-ori_sent)-2.0*M_PI) <= 0.01)
 	{
 	    theta = ori_sent;
 	    // Since we have, we don't need to keep updating the kinematics
@@ -556,7 +566,7 @@ void SetSpeedLeft(float error, float dt)  // motor speed in rad/s
     static float last_error = 0.0;	// This is the error sent to SetSpeed functions last time for D-control
     static float total_error = 0.0;	// This is the sum of all three components of the error
     static unsigned int PWMVal = 0;     // The actual value that will get stored in the PMW register
-    static float tau = 1.0/(2.0*PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
+    static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
 
     // Calculate integrated error:
     sum_error += error;
@@ -601,7 +611,7 @@ void SetSpeedRight(float error, float dt)  // motor speed in rad/s
     static float last_error = 0.0;	// This is the error sent to SetSpeed functions last time for D-control
     static float total_error = 0.0;	// This is the sum of all three components of the error
     static unsigned int PWMVal = 0;     // The actual value that will get stored in the PMW register
-    static float tau = 1.0/(2.0*PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
+    static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
 
     // Calculate integrated error:
     sum_error += error;
@@ -643,7 +653,7 @@ void SetSpeedTop(float error, float dt)  // motor speed in rad/s
     static float last_error = 0.0;	// This is the error sent to SetSpeed functions last time for D-control
     static float total_error = 0.0;	// This is the sum of all three components of the error
     static unsigned int PWMVal = 0;     // The actual value that will get stored in the PMW register
-    static float tau = 1.0/(2.0*PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
+    static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
 
     // Calculate integrated error:
     sum_error += error;
@@ -825,13 +835,13 @@ void SetPose(float xdest,float ydest,float thdest)
 	    first_angle = (atan2f((ydest-y_pos),(xdest-x_pos)));	
 	}
 
-	if(first_angle <= 0.0) first_angle += 2.0*PI;
+	if(first_angle <= 0.0) first_angle += 2.0*M_PI;
 	// Now calculate the orientation of the back of the robot:
-	thback = theta+PI;
-	if(thback >= 2.0*PI) thback -= 2.0*PI;
+	thback = theta+M_PI;
+	if(thback >= 2.0*M_PI) thback -= 2.0*M_PI;
 	// Also, let's figure out where the back would be oriented at the destination orientation:
-	tpback = ori_sent+PI;
-	if(tpback >= 2.0*PI) tpback -= 2.0*PI;
+	tpback = ori_sent+M_PI;
+	if(tpback >= 2.0*M_PI) tpback -= 2.0*M_PI;
 		
 	// Let's let RuntimeOperation() know that it can stop calling this function now
 	pose_flag = 0;
@@ -840,8 +850,8 @@ void SetPose(float xdest,float ydest,float thdest)
 		
 	// Let's assume we want forward operation.
 	// Start by calculating the minimum cost of the initial rotation for this case:
-	if(((first_angle-theta >= 0)&&(first_angle-theta <= PI))||
-	   ((first_angle-theta<0)&&(first_angle-theta<-PI)))
+	if(((first_angle-theta >= 0)&&(first_angle-theta <= M_PI))||
+	   ((first_angle-theta<0)&&(first_angle-theta<-M_PI)))
 	{
 	    // Positive rotation:
 	    rot1_f = 1;
@@ -851,12 +861,12 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot1_f = -1;
 	}
-	costf += min(fabs(first_angle-theta-2*PI),fabs(first_angle-theta));
+	costf += min(fabs(first_angle-theta-2*M_PI),fabs(first_angle-theta));
 		
 		
 	// Now calculate the minimum cost of the final rotation for this case:
-	if(((ori_sent-first_angle >= 0)&&(ori_sent-first_angle <= PI))||
-	   ((ori_sent-first_angle<0)&&(ori_sent-first_angle<-PI)))
+	if(((ori_sent-first_angle >= 0)&&(ori_sent-first_angle <= M_PI))||
+	   ((ori_sent-first_angle<0)&&(ori_sent-first_angle<-M_PI)))
 	{
 	    // Positive rotation:
 	    rot2_f = 1;
@@ -866,12 +876,12 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot2_f = -1;
 	}
-	costf += min(fabs(ori_sent-first_angle),fabs(fabs(ori_sent-first_angle)-2*PI));
+	costf += min(fabs(ori_sent-first_angle),fabs(fabs(ori_sent-first_angle)-2*M_PI));
 		
 	// Now, let's assume backwards operation.
 	// Start by calculating the minimum cost of the initial rotation for this case:
-	if(((first_angle-thback >= 0)&&(first_angle-thback <= PI))||
-	   ((first_angle-thback<0)&&(first_angle-thback<-PI)))
+	if(((first_angle-thback >= 0)&&(first_angle-thback <= M_PI))||
+	   ((first_angle-thback<0)&&(first_angle-thback<-M_PI)))
 	{
 	    // Positive rotation:
 	    rot1_b = 1;
@@ -881,11 +891,11 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot1_b = -1;
 	}
-	costb += min(fabs(first_angle-thback),fabs(fabs(first_angle-thback)-2*PI));
+	costb += min(fabs(first_angle-thback),fabs(fabs(first_angle-thback)-2*M_PI));
 		
 	// Now calculate the minimum cost of the final rotation for this case:
-	if(((tpback-first_angle >= 0)&&(tpback-first_angle <= PI))||
-	   ((tpback-first_angle<0)&&(tpback-first_angle<-PI)))
+	if(((tpback-first_angle >= 0)&&(tpback-first_angle <= M_PI))||
+	   ((tpback-first_angle<0)&&(tpback-first_angle<-M_PI)))
 	{
 	    // Positive rotation:
 	    rot2_b = 1;
@@ -895,7 +905,7 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot2_b = -1;
 	}
-	costb += min(fabs(tpback-first_angle),fabs(fabs(tpback-first_angle)-2*PI));
+	costb += min(fabs(tpback-first_angle),fabs(fabs(tpback-first_angle)-2*M_PI));
 
 	// Now lets figure out which costs less?
 	if (costf <= costb)
@@ -913,8 +923,8 @@ void SetPose(float xdest,float ydest,float thdest)
 	    dir_flag = -1;
 	    // If we are going backward, we need to change first_angle by pi so that 
 	    // the robot knows when to stop the initial rotation
-	    first_angle += PI;
-	    if(first_angle > 2.0*PI) first_angle -= 2.0*PI;
+	    first_angle += M_PI;
+	    if(first_angle > 2.0*M_PI) first_angle -= 2.0*M_PI;
 	}		
 		
 	// Now let's set the motor speeds such that we begin the first rotation correctly:
@@ -958,14 +968,11 @@ void PoseUpdate(void)
     INTEnable(INT_IC2, 0);
     INTEnable(INT_IC5, 0);
     INTEnable(INT_U2RX, 0);
+    INTEnable(INT_U2TX, 0);
 	
     // Now, we can begin sorting the data:
-    char x_sign; 	// Determines if the received x-coordinate is positive or negative
-    char y_sign; 	// Determines if the received y-coordinate is positive or negative
-    char data;   	// This is the very first entry in the in buffer (the header byte)
-    char dir_left;	// The direction of the left wheel that was sent
-    char dir_right;	// The direction of the right wheel that was sent
-    char dir_top;	// Top motor direction
+    char data;  // This is the very first entry in the in buffer (the header byte)
+    unsigned char buffer[12];
 		
     // Set the current byte of the RS232_In_Buffer to be equal to data:
     data = Command_String[0];
@@ -979,9 +986,14 @@ void PoseUpdate(void)
     	    if (Command_String[j] != 0)
 	    {
 		movement_flag = 0;
+		mLED_2_Off();
 		break;
 	    }
-	    else movement_flag = 1;
+	    else
+	    {
+		movement_flag = 1;
+		mLED_2_On();
+	    }
     	}
     }
     if (movement_flag == 0)
@@ -993,6 +1005,7 @@ void PoseUpdate(void)
 	INTEnable(INT_IC2, 1);
 	INTEnable(INT_IC5, 1);
 	INTEnable(INT_U2RX, 1);
+	INTEnable(INT_U2TX, 1);
 	return;
     }
     
@@ -1061,7 +1074,8 @@ void PoseUpdate(void)
 	left_desired = InterpNumber(&Command_String[2]);
 	right_desired = InterpNumber(&Command_String[5]);	
 	top_desired = InterpNumber(&Command_String[8]);
-
+	mLED_3_Toggle();
+	
 	// We just received commands for explicitly controlling the wheel speeds, let's force the pose control
 	// to stop executing:
 	height_flag = 0;
@@ -1079,6 +1093,7 @@ void PoseUpdate(void)
 	left_desired = 0.0;
 	right_desired = 0.0;
 	top_desired = 0.0;
+	movement_flag = 0;
     }
     else if (data == 't')
     {
@@ -1105,6 +1120,36 @@ void PoseUpdate(void)
        	    height_flag = 0;
     	}
     }
+    else if (data == 'w')
+    {
+    	// This is a request for the robot's current pose, so let's
+    	// send it out:
+    	DisableWDT();
+    	// Make string to send out:
+    	MakeString(buffer,'w',x_pos,y_pos,theta,3);
+    	// Add checksum and send to master node:
+    	CreateAndSendArray(0, buffer);
+    	putsUART2("\n");
+
+    	/* UINT8 STR[1024]; */
+    	/* sprintf(STR, "%d\n", (int) left_steps); */
+    	/* SendDataBuffer(STR, strlen(STR)); */
+    	ClearEventWDT();
+    	EnableWDT();
+    }
+    else if (data == 'e')
+    {
+    	// This is a request for the robot's current motor speeds,
+    	// so let's send it out:
+    	DisableWDT();
+    	// Make string to send out:
+    	MakeString(buffer,'e',left_speed,right_speed,top_speed,3);
+    	// Add checksum and send to master node:
+    	CreateAndSendArray(0, buffer);
+    	putsUART2("\n");
+    	ClearEventWDT();
+    	EnableWDT();
+    }
 	
     // Now, let's re-enable all interrupts:
     INTEnable(INT_OC5, 1);
@@ -1114,6 +1159,7 @@ void PoseUpdate(void)
     INTEnable(INT_IC2, 1);
     INTEnable(INT_IC5, 1);
     INTEnable(INT_U2RX, 1);
+    INTEnable(INT_U2TX, 1);
 }
 
 void RuntimeOperation(void)
@@ -1177,7 +1223,6 @@ float InterpNumber(const unsigned char *data)
 
 int Data_Checker(unsigned char* buff)
 {
-    mLED_3_Toggle();
     short int j = 0;
     short int k = 0;
     short int i = 0;
@@ -1220,7 +1265,7 @@ void Reset_Robot(void)
     CloseOC1();
     CloseOC2();
     CloseOC3();
-   
+    
     // Now, we can restart robot:
     SoftReset();
     asm("nop");
@@ -1229,4 +1274,69 @@ void Reset_Robot(void)
     asm("nop");
     asm("nop");
     asm("nop");
+}
+
+void BuildNumber(unsigned char *destination, float value, short int divisor)
+{
+    int valint = 0;
+    int i = 0;
+    short int i1;
+    short unsigned int i2, i3;
+    // First thing is to move the decimal point of the integer to the
+    // right a "divisor" number of times:
+    for(i = 0; i<3; i++) value = value*10.0;
+    valint = (int) value;
+    // Now build the three chars:
+    i1 = ((valint<<3) & 0xFF0000)>>16;
+    i2 = ((valint<<3) & 0x00FF00)>>8;
+    i3 = ((valint<<3) & 0x0000FF);
+    i3 = (((i3)&0xF0)) + ((i3&0x0F)|divisor);
+
+    // Now, place the chars in the array:
+    *(destination) = i1;
+    *(destination+1) = i2;
+    *(destination+2) = i3;
+        
+    return;
+}
+
+void MakeString(unsigned char *dest, char type, float fval,
+		float sval, float tval, int div)
+{
+    *dest = type;
+    BuildNumber((dest+1), fval, div);
+    BuildNumber((dest+4), sval, div);
+    BuildNumber((dest+7), tval, div);
+}
+
+void CreateAndSendArray(unsigned short id, unsigned char *DataString)
+{
+    unsigned char packet [20];
+    int i = 0;
+    unsigned int checksum = 0;
+
+    // Initialize packet:
+    memset(packet,0,sizeof(packet));
+
+    // Fill packet:
+    packet[0] = DataString[0];
+    sprintf(&packet[1],"%d",id);
+        for(i = 2; i < DATA_LENGTH-1; i++)
+	packet[i] = DataString[i-1];
+
+    // Now, let's calculate a checksum:
+    checksum = 0;
+    for(i = 0; i < DATA_LENGTH-1; i++)
+	checksum += packet[i];
+    checksum = 0xFF-(checksum & 0xFF);
+    packet[DATA_LENGTH-1] = checksum;
+
+    // Now, we can send the data out:
+    SendDataBuffer(packet, sizeof(packet));
+}
+
+void delay(void)
+{
+    long unsigned int num_calls = SYS_FREQ/8;
+    while(num_calls) num_calls--;
 }
