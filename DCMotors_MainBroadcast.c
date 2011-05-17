@@ -125,19 +125,6 @@ int main()
     while(BusyUART2());
     putsUART2("\n\r");
 
-    mLED_1_On();
-    mLED_2_On();
-    mLED_3_On();
-    mLED_4_On();
-
-    while(swProgram);
-
-    mLED_1_Off();
-    mLED_2_Off();
-    mLED_3_Off();
-    mLED_4_Off();
-    
-
     // Initialize the second timer for checking kinematics:
     InitTimer2();
     // Initialize the fourth timer for data string timeouts:
