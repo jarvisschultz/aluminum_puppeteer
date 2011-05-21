@@ -135,7 +135,7 @@ int main()
     ClearEventWDT();
     DisableWDT();
     EnableWDT();
-	
+
     while(1)
     {
 	// We simply call this function repeatedly, and it executes
