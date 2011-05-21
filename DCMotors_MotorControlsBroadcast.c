@@ -32,7 +32,6 @@ Jarvis Schultz and Marcus Hammond
 #define T2options	T2_ON | T2_PS_1_2 | T2_SOURCE_INT  	// These are the setup options for timer two (CheckKinematics)
 #define T3options 	T3_ON | T3_PS_1_1 | T3_SOURCE_INT  	// These are the setup options for timer three (Motor PWM Period)
 #define T4options 	T4_ON | T4_PS_1_256 | T4_SOURCE_INT  	// These are the setup options for timer three (Motor PWM Period)
-/* #define BAUDRATE	(115200)				// This is the rate that we will communicate over RS232 at */
 #define BAUDRATE	(111111)				// This is the rate that we will communicate over RS232 at
 #define CHANNEL_A_L	PORTDbits.RD12
 #define CHANNEL_B_L	PORTDbits.RD13
@@ -77,11 +76,11 @@ static float theta = 0.0;		// This variable is what the PIC sees as its current 
                                         // the positive global x-axis (between 0 and 2pi)	
 static float height = 0.0;		// This is the height of the end of the string.  This height is never negative, it is the
                                         // height relative to the height set by the string when it is all the way down.
-static float d_pulley = 0.75;           // This is the diameter of the pulley that the string winds onto
-/* static float L = 5.95/2;		// This is one-half of the robot's track width */
-static float L = 5.21/2;		// This is one-half of the robot's track width
-static float D = 3.0;			// Diameter of the wheel in inches
-static float speed = 3.0;		// This is the default wheel revolution rate when in pose control mode (rad/s).
+static float d_pulley = 0.019049999;           // This is the diameter of the pulley that the string winds onto
+/* static float L = 5.95/2;		// This is one-half of the robot's track width in meters */
+static float L = 0.132334/2;		// This is one-half of the robot's track width in meters
+static float D = 0.07619999999999;	// Diameter of the wheel in meters
+static float speed = 6.0;		// This is the default wheel revolution rate when in pose control mode (rad/s).
 static unsigned char RS232_In_Buffer[DATA_LENGTH] = "zzzzzzzzzzzz";//  This is an array that is initialized with 
 	                                                    // useless data in it; it is used for temporary 
                                                             // storage of data brought in from the PC on UART2
@@ -120,7 +119,6 @@ static char BROADCAST = '9';
 
 // Add a bunch of variables for communication safety:
 static unsigned char header_list[10]={'p','l','r','h','s','q','t','m','w','e'};
-/* static unsigned char header_list[8]={'p','l','r','h','s','q','t','m'}; */
 /******************************************************************************/
 // Note that the header characters mean the following:
 //	'p' = Drive to a desired pose
@@ -961,12 +959,6 @@ void PoseUpdate(void)
 
     // Now, let's disable both OC interrupts, both IC interrupts and the UART interrupt so that they are not interrupting while 
     //	we are sorting out the data that was received:
-    INTEnable(INT_OC5, 0);
-    INTEnable(INT_OC2, 0);	
-    INTEnable(INT_OC3, 0);
-    INTEnable(INT_IC4, 0);
-    INTEnable(INT_IC2, 0);
-    INTEnable(INT_IC5, 0);
     INTEnable(INT_U2RX, 0);
     INTEnable(INT_U2TX, 0);
 	
@@ -998,12 +990,6 @@ void PoseUpdate(void)
     }
     if (movement_flag == 0)
     {
-	INTEnable(INT_OC5, 1);
-	INTEnable(INT_OC2, 1);	
-	INTEnable(INT_OC3, 1);
-	INTEnable(INT_IC4, 1);
-	INTEnable(INT_IC2, 1);
-	INTEnable(INT_IC5, 1);
 	INTEnable(INT_U2RX, 1);
 	INTEnable(INT_U2TX, 1);
 	return;
@@ -1126,15 +1112,10 @@ void PoseUpdate(void)
     	// send it out:
     	DisableWDT();
     	// Make string to send out:
-    	MakeString(buffer,'w',x_pos,y_pos,theta,3);
+    	MakeString(buffer,'w',x_pos,y_pos,theta,4);
     	// Add checksum and send to master node:
     	CreateAndSendArray(0, buffer);
-    	putsUART2("\n");
-
-    	/* UINT8 STR[1024]; */
-    	/* sprintf(STR, "%d\n", (int) left_steps); */
-    	/* SendDataBuffer(STR, strlen(STR)); */
-    	ClearEventWDT();
+	ClearEventWDT();
     	EnableWDT();
     }
     else if (data == 'e')
@@ -1146,18 +1127,11 @@ void PoseUpdate(void)
     	MakeString(buffer,'e',left_speed,right_speed,top_speed,3);
     	// Add checksum and send to master node:
     	CreateAndSendArray(0, buffer);
-    	putsUART2("\n");
     	ClearEventWDT();
     	EnableWDT();
     }
 	
     // Now, let's re-enable all interrupts:
-    INTEnable(INT_OC5, 1);
-    INTEnable(INT_OC2, 1);	
-    INTEnable(INT_OC3, 1);
-    INTEnable(INT_IC4, 1);
-    INTEnable(INT_IC2, 1);
-    INTEnable(INT_IC5, 1);
     INTEnable(INT_U2RX, 1);
     INTEnable(INT_U2TX, 1);
 }
@@ -1284,7 +1258,7 @@ void BuildNumber(unsigned char *destination, float value, short int divisor)
     short unsigned int i2, i3;
     // First thing is to move the decimal point of the integer to the
     // right a "divisor" number of times:
-    for(i = 0; i<3; i++) value = value*10.0;
+    for(i = 0; i < divisor; i++) value = value*10.0;
     valint = (int) value;
     // Now build the three chars:
     i1 = ((valint<<3) & 0xFF0000)>>16;
@@ -1332,7 +1306,7 @@ void CreateAndSendArray(unsigned short id, unsigned char *DataString)
     packet[DATA_LENGTH-1] = checksum;
 
     // Now, we can send the data out:
-    SendDataBuffer(packet, sizeof(packet));
+    SendDataBuffer(packet, DATA_LENGTH);
 }
 
 void delay(void)
