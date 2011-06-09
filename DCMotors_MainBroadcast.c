@@ -42,6 +42,7 @@ XBee network during initialization.
 #define ID_ADDRESS_FLAG	       (0x9D07CFE0)
 char ID, ID_flag;
 unsigned int *ptr_ID, *ptr_ID_flag;
+volatile int total_replies = 0;
 
 /** User Called Functions *************************************/
 
@@ -72,7 +73,7 @@ int main()
 {
     int PbClk; // Frequency of the peripheral bus clock
     long int j = 0;
-
+  
     // Let's set the integer PbClk to be the value of the frequency
     // of the peripheral bus clock
     PbClk = SYSTEMConfigPerformance(SYS_FREQ);
@@ -120,10 +121,24 @@ int main()
 	// We just read the ID Value
 	ID = (char) (*ptr_ID);
     }
-
+    
+    ID = '1';
     putcUART2(ID);
     while(BusyUART2());
     putsUART2("\n\r");
+
+    while(swProgram)
+    {
+	mLED_1_On();
+	mLED_2_On();
+	mLED_3_On();
+	mLED_4_On();
+    }
+    mLED_1_Off();
+    mLED_2_Off();
+    mLED_3_Off();
+    mLED_4_Off();
+    
 
     // Initialize the second timer for checking kinematics:
     InitTimer2();
@@ -143,6 +158,11 @@ int main()
 	RuntimeOperation();
 	j++;
 	if(j%500000 == 0) mLED_4_Toggle();
+
+	if (!swUser)
+	{
+	    printf("%d\n\r", total_replies);
+	}
 
 	// To ensure that the PIC code is not stuck somehow, we
 	// use a watchdog timer. Let's reset it here:

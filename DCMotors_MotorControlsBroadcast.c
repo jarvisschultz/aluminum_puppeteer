@@ -42,8 +42,9 @@ Jarvis Schultz and Marcus Hammond
 #define MAX_RESOLUTION	3999	       // Proportional to period of PWM (represents the maximum 
 				       // number that we can use for PWM function)
 #define ERROR_DEADBAND	0.05           // This is a deadband where we do nothing to the motors
-#define DATA_LENGTH     12             // This is the length of a data string
-#define frequency  1500		       // Let's check the kinematics this many times per second
+#define FULL_PACKET_SIZE     12        // This is the length of a data string
+#define SMALL_PACKET_SIZE    3 
+#define frequency  1500	       // Let's check the kinematics this many times per second
 /* #define GEARRATIO  (19.0*(3.0/4.0))    // The gear ratio of the gearhead on the DC motor */
 #define GEARRATIO  (19.0*(46.0/42.0))    // The gear ratio of the gearhead on the DC motor
 #define CPR  100.0	               // The number of counts per revolution of the motor's encoder
@@ -60,6 +61,7 @@ Jarvis Schultz and Marcus Hammond
 
 
 /** Global Variables **************************************************/
+static short int DATA_LENGTH = 12;
 static float left_speed = 0.0;		// This variable is the current left motor speed in rad/ second
 static float right_speed = 0.0;		// This variable is the current right motor speed in rad/ second
 static float top_speed = 0.0;		// This variable is the current top motor speed in rad/ second
@@ -81,10 +83,10 @@ static float d_pulley = 0.019049999;           // This is the diameter of the pu
 static float L = 0.132334/2;		// This is one-half of the robot's track width in meters
 static float D = 0.07619999999999;	// Diameter of the wheel in meters
 static float speed = 6.0;		// This is the default wheel revolution rate when in pose control mode (rad/s).
-static unsigned char RS232_In_Buffer[DATA_LENGTH] = "zzzzzzzzzzzz";//  This is an array that is initialized with 
+static unsigned char RS232_In_Buffer[FULL_PACKET_SIZE] = "zzzzzzzzzzzz";//  This is an array that is initialized with 
 	                                                    // useless data in it; it is used for temporary 
                                                             // storage of data brought in from the PC on UART2
-static unsigned char Command_String[DATA_LENGTH] = "zzzzzzzzzzzz";
+static unsigned char Command_String[FULL_PACKET_SIZE] = "zzzzzzzzzzzz";
 static int i = 0;	        // This is for marking the position in the RS232_In_Buffer that we are writing into.
 static int data_flag = 0;  	// This variable is used for telling if we have received updated information about the robot's
                                 // current position or current instructions.  If we have, we break out of the current control loop
@@ -139,6 +141,7 @@ static short int movement_flag = 0;
 static short int midstring_flag = 0;
 static short int timeout_flag = 0;
 static short int bad_data_counter = 0;
+extern int total_replies;
 
 
 /** Interrupt Handler Functions:**************************************************************************************************/
@@ -146,6 +149,7 @@ static short int bad_data_counter = 0;
 // it is set at priority level 2
 void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 {
+    mLED_3_On();
     unsigned char temp;
     // Is this from receiving data?
     if(mU2RXGetIntFlag())
@@ -169,6 +173,10 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 		    i = 0;
 		    header_flag = 1;
 		    midstring_flag = 1;
+		    DATA_LENGTH = FULL_PACKET_SIZE;
+		    // If a request, it is a short packet!
+		    if (temp == 'w' || temp == 'e')
+			DATA_LENGTH = SMALL_PACKET_SIZE;
 		    break;
 		}
 	    }
@@ -254,6 +262,7 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
     {
 	mU2TXClearIntFlag();
     }
+    mLED_3_Off();
 }
 
 // This is the ISR that gets called when we detect a rising or falling edge on CHANNEL_A_R
@@ -1060,7 +1069,7 @@ void PoseUpdate(void)
 	left_desired = InterpNumber(&Command_String[2]);
 	right_desired = InterpNumber(&Command_String[5]);	
 	top_desired = InterpNumber(&Command_String[8]);
-	mLED_3_Toggle();
+	/* mLED_3_Toggle(); */
 	
 	// We just received commands for explicitly controlling the wheel speeds, let's force the pose control
 	// to stop executing:
@@ -1117,6 +1126,7 @@ void PoseUpdate(void)
     	CreateAndSendArray(0, buffer);
 	ClearEventWDT();
     	EnableWDT();
+	total_replies++;
     }
     else if (data == 'e')
     {
@@ -1208,6 +1218,10 @@ int Data_Checker(unsigned char* buff)
 	{
 	    if(buff[k] == header_list[j])
 	    {
+		// Let's set DATA_LENGTH to the correct value:
+		DATA_LENGTH = FULL_PACKET_SIZE;
+		if (buff[k] == 'w' || buff[k] == 'e')
+		    DATA_LENGTH = SMALL_PACKET_SIZE;
 		if (k == DATA_LENGTH-1)
 		{
 		    i = DATA_LENGTH-k;
@@ -1295,18 +1309,18 @@ void CreateAndSendArray(unsigned short id, unsigned char *DataString)
     // Fill packet:
     packet[0] = DataString[0];
     sprintf(&packet[1],"%d",id);
-        for(i = 2; i < DATA_LENGTH-1; i++)
+        for(i = 2; i < FULL_PACKET_SIZE-1; i++)
 	packet[i] = DataString[i-1];
 
     // Now, let's calculate a checksum:
     checksum = 0;
-    for(i = 0; i < DATA_LENGTH-1; i++)
+    for(i = 0; i < FULL_PACKET_SIZE-1; i++)
 	checksum += packet[i];
     checksum = 0xFF-(checksum & 0xFF);
-    packet[DATA_LENGTH-1] = checksum;
+    packet[FULL_PACKET_SIZE-1] = checksum;
 
     // Now, we can send the data out:
-    SendDataBuffer(packet, DATA_LENGTH);
+    SendDataBuffer(packet, FULL_PACKET_SIZE);
 }
 
 void delay(void)
