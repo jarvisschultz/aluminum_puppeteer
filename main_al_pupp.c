@@ -26,11 +26,17 @@ user wants to re-run the initialization, all they have to do is hold
 the swUser button while re-setting the PIC.  For the initialization to
 complete successfully, there should be no data transferred over the
 XBee network during initialization.
+
+EDIT: 5-25-2011
+
+Just renamed all of the files involved in this project, and created a
+new makefile because we are making the transition over to aluminum
+puppeteers with four motors.
 ***************************************************************/
 
 
 /** Includes **************************************************/
-#include "DCMotors_FunctionsBroadcast.h"
+#include "prototypes_al_pupp.h"
 #include "HardwareProfile.h"
 
 /** Global Variables ******************************************/

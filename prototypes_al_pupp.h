@@ -1,10 +1,9 @@
 /*************************************************
 Jarvis Schultz and Marcus Hammond 
 
-8-25-2010
+5-25-2011
 
-This file simply contains the function prototypes/ declarations for 
-DCMotors_MotorControls.c.
+This file simply contains the function prototypes/ declarations
 *************************************************/
 #ifndef _MOTORS
 	#define _MOTORS

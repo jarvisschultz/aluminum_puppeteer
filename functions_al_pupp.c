@@ -2,9 +2,21 @@
 Jarvis Schultz and Marcus Hammond
 8-25-2010
 
+This code contains all of the main functions for controlling the
+robotic puppeteers as part of the "puppet people" project.
+
+EDIT: 4-15-2011
+
+Just made significant modifications to add a lot of safety features
+related to dangerous situations that may arise if wireless
+communication fails.
+
+EDIT: 5-25-2011
+
+More significant changes so that the new aluminum puppeteers can
+control four motors.
+
 **************************************************************/
-
-
 
 /** Includes ************************************************/
 #include "HardwareProfile.h"
@@ -15,11 +27,9 @@ Jarvis Schultz and Marcus Hammond
 #include <string.h>
 #include <stdio.h>
 #ifndef _MOTORS
-#include "DCMotors_FunctionsBroadcast.h"
-#define _MOTORS
+	#include "prototypes_al_pupp.h"
+	#define _MOTORS
 #endif
-
-
 
 /** Defines ***************************************************/
 #define TRUE            1
@@ -767,7 +777,7 @@ void SetSpeedTopRight(float error, float dt)  // motor speed in rad/s
 	PWMVal = MAX_RESOLUTION;
 	sum_error -= error;
     }
-    if(total_error > 0)
+    if(total_error < 0)
     {
 	DIRECTION_PIN_TR = FORWARD;
 	SetDCOC1PWM(PWMVal);
