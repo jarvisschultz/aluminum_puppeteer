@@ -19,10 +19,15 @@ void SetSpeedRight(float motor_speed, float dt); 	// This function sets the righ
 float GetSpeedRight(void);				// This function simply returns the current value of the speed set for the left motor in (steps/sec)
 int GetStepsRight(void);		 		// This function returns the current right motor position in steps
 
-void SetStepsTop(int set_steps);        // This function manually changes the number stored in the number of steps variable for the right motor
-void SetSpeedTop(float motor_speed, float dt); 	        // This function sets the right motor speed at the desired speed and begins driving the motor
-float GetSpeedTop(void);				// This function simply returns the current value of the speed set for the left motor in (steps/sec)
-int GetStepsTop(void);		 			// This function returns the current right motor position in steps
+void SetStepsTopLeft(int set_steps);        // This function manually changes the number stored in the number of steps variable for the right motor
+void SetSpeedTopLeft(float motor_speed, float dt); 	// This function sets the right motor speed at the desired speed and begins driving the motor
+float GetSpeedTopLeft(void);				// This function simply returns the current value of the speed set for the left motor in (steps/sec)
+int GetStepsTopLeft(void);		 		// This function returns the current right motor position in steps
+
+void SetStepsTopRight(int set_steps);        // This function manually changes the number stored in the number of steps variable for the right motor
+void SetSpeedTopRight(float motor_speed, float dt); 	// This function sets the right motor speed at the desired speed and begins driving the motor
+float GetSpeedTopRight(void);				// This function simply returns the current value of the speed set for the left motor in (steps/sec)
+int GetStepsTopRight(void);		 		// This function returns the current right motor position in steps
 
 void InitUART2(int pbClk);				// Function for initializing UART2
 void SetPose(float xdest, float ydest, float thdest);	// This function contains all of the logic for the pose control mode of operation

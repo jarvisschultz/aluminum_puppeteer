@@ -24,9 +24,10 @@ Jarvis Schultz and Marcus Hammond
 /** Defines ***************************************************/
 #define TRUE            1
 #define FALSE		0
-#define DIRECTION_PIN_L	LATDbits.LATD3
-#define DIRECTION_PIN_R	LATDbits.LATD5
-#define DIRECTION_PIN_T	LATCbits.LATC13
+#define DIRECTION_PIN_L	 LATDbits.LATD3
+#define DIRECTION_PIN_R	 LATDbits.LATD5
+#define DIRECTION_PIN_TL LATCbits.LATC13
+#define DIRECTION_PIN_TR LATDbits.LATD10
 #define FORWARD		0
 #define REVERSE		1
 #define T2options	T2_ON | T2_PS_1_2 | T2_SOURCE_INT  	// These are the setup options for timer two (CheckKinematics)
@@ -37,24 +38,24 @@ Jarvis Schultz and Marcus Hammond
 #define CHANNEL_B_L	PORTDbits.RD13
 #define CHANNEL_A_R	PORTDbits.RD9
 #define CHANNEL_B_R	PORTDbits.RD6
-#define CHANNEL_A_T	PORTDbits.RD11
-#define CHANNEL_B_T	PORTCbits.RC14
+#define CHANNEL_A_TL	PORTDbits.RD11
+#define CHANNEL_B_TL	PORTCbits.RC14
+#define CHANNEL_A_TR	PORTDbits.RD8
+#define CHANNEL_B_TR	PORTDbits.RD7
 #define MAX_RESOLUTION	3999	       // Proportional to period of PWM (represents the maximum 
 				       // number that we can use for PWM function)
 #define ERROR_DEADBAND	0.05           // This is a deadband where we do nothing to the motors
 #define FULL_PACKET_SIZE     12        // This is the length of a data string
 #define SMALL_PACKET_SIZE    3 
 #define frequency  1500	       // Let's check the kinematics this many times per second
-/* #define GEARRATIO  (19.0*(3.0/4.0))    // The gear ratio of the gearhead on the DC motor */
-#define GEARRATIO  (19.0*(46.0/42.0))    // The gear ratio of the gearhead on the DC motor
+#define GEARRATIO  (19.0*(42.0/46.0))    // The gear ratio of the gearhead on the DC motor
 #define CPR  100.0	               // The number of counts per revolution of the motor's encoder
 #define dtbase (1.0/frequency)         // The period of CheckKinematics calls
 #define convert (M_PI/(CPR*dtbase*GEARRATIO)) // For converting angular wheel and motor velocities
-/* #define converttop (convert*(3.0/4.0))      // For the original puppeteers */
-#define converttop (convert*(46.0/42.0))      // For the aluminum puppeteers
+#define converttop (convert*(42.0/46.0))      // For the aluminum puppeteers
 #define ticktime (2.0/(80000000.0))    // For calculating times since timer ISR's were initially called
 #define MAX_BAD_DATA_TOTAL (10)	       
-#define MAX_BAD_DATA	(3)
+#define MAX_BAD_DATA	(5)
 #define MAX_BAD_COUNTER  (200)
 #define timeout_frequency (10)
 #define SYS_FREQ	(80000000L)
@@ -64,22 +65,25 @@ Jarvis Schultz and Marcus Hammond
 static short int DATA_LENGTH = 12;
 static float left_speed = 0.0;		// This variable is the current left motor speed in rad/ second
 static float right_speed = 0.0;		// This variable is the current right motor speed in rad/ second
-static float top_speed = 0.0;		// This variable is the current top motor speed in rad/ second
+static float top_left_speed = 0.0;	// This variable is the current top left motor speed in rad/ second
+static float top_right_speed = 0.0;	// This variable is the current top right motor speed in rad/ second
 static long long left_steps = 0;	// This variable is used for tracking how many encoder pulses the left motor has rotated
 static long long right_steps = 0;	// This variable is used for tracking how many encoder pulses the right motor has rotated
-static long long top_steps = 0;	        // This variable is used for tracking how many encoder pulses the top motor has rotated
+static long long top_left_steps = 0;	// This variable is used for tracking how many encoder pulses the top left motor has rotated
+static long long top_right_steps = 0;	// This variable is used for tracking how many encoder pulses the top right motor has rotated
 static long long left_steps_last = 0;	// This variable is used for tracking how many encoder pulses the left motor had previously rotated
 static long long right_steps_last = 0;  // This variable is used for tracking how many encoder pulses the right motor had previously rotated
-static long long top_steps_last = 0;	// This variable is used for tracking how many encoder pulses the top motor had previously rotated
+static long long top_left_steps_last = 0;
+static long long top_right_steps_last = 0;
 
 static float x_pos = 0.0;		// This variable is what the PIC sees as its current x-position in some world frame
 static float y_pos = 0.0;		// This variable is what the PIC sees as its current y-position in some world frame
 static float theta = 0.0;		// This variable is what the PIC sees as its current orientation (in radians) w.r.t 
                                         // the positive global x-axis (between 0 and 2pi)	
-static float height = 0.0;		// This is the height of the end of the string.  This height is never negative, it is the
+static float height_left = 0.0;		// This is the height of the end of the string.  This height is never negative, it is the
                                         // height relative to the height set by the string when it is all the way down.
-static float d_pulley = 0.019049999;           // This is the diameter of the pulley that the string winds onto
-/* static float L = 5.95/2;		// This is one-half of the robot's track width in meters */
+static float height_right = 0.0;
+static float d_pulley = 0.034924999999999998;    // This is the diameter of the pulley that the string winds onto (meters)
 static float L = 0.132334/2;		// This is one-half of the robot's track width in meters
 static float D = 0.07619999999999;	// Diameter of the wheel in meters
 static float speed = 6.0;		// This is the default wheel revolution rate when in pose control mode (rad/s).
@@ -96,11 +100,11 @@ static int pose_flag = 0;  	// This flag is used for determining when the SetPos
                                 // if we have reached the PoseUpdate function while executing SetPose, SetPose will recursively call
                                 // itself and PoseUpdate does not need to call SetPose
 static int header_flag = 0;	// This flag is used for determining if we have received a header on the receive pins.
-static int height_flag = 0;	// This flag is used for determining if we are controlling the position of the top motor
 static float x_sent = 0.0; 	// This is the value of the x-coordinate received
 static float y_sent = 0.0; 	// This is the value of the y-coordinate received
 static float ori_sent = 0.0;	// This is the value of the orientation received
-static float height_sent = 0.0;	// This is the value of the desired height of the end of the string in inches
+/* static float height_left_sent = 0.0;	// This is the value of the desired height of the end of the string in inches */
+/* static float height_right_sent = 0.0; */
 static float first_angle = 0.0; 	// This is the angle of the vector from the robots current position towards its goal position
                                         // to begin heading towards the new point sent over RS232
 static int exec_state = 0;	        // This variable is to determine which mode of operation we are currently in:
@@ -111,7 +115,8 @@ static int exec_state = 0;	        // This variable is to determine which mode o
 						// 4) Rotating towards final orientation
 static float left_desired;	// This is the desired wheel speed of the left motor in rad/sec sent over RS232
 static float right_desired;	// This is the desired wheel speed of the right motor in rad/sec sent over RS232	
-static float top_desired;	// This is the desired wheel speed of the top motor in rad/sec sent over RS232	
+static float top_left_desired;	// This is the desired wheel speed of the top motor in rad/sec sent over RS232
+static float top_right_desired;	// This is the desired wheel speed of the top motor in rad/sec sent over RS232	
 //static UINT8 STR[1024];		// An empty string we use for sending data
 static float kp = 500;		// Gain on the proportional error term
 static float ki = 50;		// Gain on the integral error term
@@ -141,8 +146,6 @@ static short int movement_flag = 0;
 static short int midstring_flag = 0;
 static short int timeout_flag = 0;
 static short int bad_data_counter = 0;
-extern int total_replies;
-
 
 /** Interrupt Handler Functions:**************************************************************************************************/
 // UART 2 interrupt handler
@@ -274,7 +277,7 @@ void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl5) CheckPosition_r()
 		
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC2);
-    /* mLED_2_Toggle();  */
+
     // Now we can perform logic to determine which direction we are going and we can increment counter
     if(tempA)
     {
@@ -299,7 +302,7 @@ void __ISR(_INPUT_CAPTURE_5_VECTOR, ipl5) CheckPosition_l()
 		
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC5);
-    /* mLED_3_Toggle(); */
+
     // Now we can perform logic to determine which direction we are going and we can increment counter
     if(tempA)
     {
@@ -316,12 +319,12 @@ void __ISR(_INPUT_CAPTURE_5_VECTOR, ipl5) CheckPosition_l()
 }
 
 
-// This is the ISR that gets called when we detect a rising or falling edge on CHANNEL_A_T
-void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl5) CheckPosition_t()
+// This is the ISR that gets called when we detect a rising or falling edge on CHANNEL_A_TL
+void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl5) CheckPosition_t_l()
 {
     static int tempA, tempB;
-    tempA = CHANNEL_A_T;
-    tempB = CHANNEL_B_T;
+    tempA = CHANNEL_A_TL;
+    tempB = CHANNEL_B_TL;
 	
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC4);
@@ -330,13 +333,38 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl5) CheckPosition_t()
     {
 	// So, we know that we just detected a rising edge on channel A.  Let's determine whether
 	// channel b is high or low to determine our direction:
-	if(tempB) top_steps++;
-	else top_steps--;
+	if(tempB) top_left_steps++;
+	else top_left_steps--;
     }
     else if(!tempA)
     {
-	if(tempB) top_steps--;
-	else top_steps++;
+	if(tempB) top_left_steps--;
+	else top_left_steps++;
+    }
+}
+
+
+// This is the ISR that gets called when we detect a rising or falling edge on CHANNEL_A_TR
+void __ISR(_INPUT_CAPTURE_1_VECTOR, ipl5) CheckPosition_t_r()
+{
+    static int tempA, tempB;
+    tempA = CHANNEL_A_TR;
+    tempB = CHANNEL_B_TR;
+	
+    // Let's clear the interrupt flag:
+    INTClearFlag(INT_IC1);
+    // Now we can perform logic to determine which direction we are going and we can increment counter
+    if(tempA)
+    {
+	// So, we know that we just detected a rising edge on channel A.  Let's determine whether
+	// channel b is high or low to determine our direction:
+	if(tempB) top_right_steps++;
+	else top_right_steps--;
+    }
+    else if(!tempA)
+    {
+	if(tempB) top_right_steps--;
+	else top_right_steps++;
     }
 }
 
@@ -351,7 +379,7 @@ void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout()
 	if (timeout_flag == 1)
 	{
 	    if( (fabs(left_desired) >= 0.1) || (fabs(right_desired) >= 0.1)
-		|| (fabs(top_desired) >= 0.1))
+		|| (fabs(top_left_desired) >= 0.1) || (fabs(top_right_desired) >= 0.1))
 	    {
 		// Reset!
 		Reset_Robot();
@@ -371,30 +399,35 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 {
     float Vr = 0.0;
     float Vl = 0.0;
-    float Vt = 0.0;
+    float Vtl = 0.0;
+    float Vtr = 0.0;
     float omega = 0.0;
     float R = 0.0;
     /* float dt = 0.0; */
-    int top_current, left_current, right_current;
+    int top_left_current, top_right_current, left_current, right_current;
 
     left_current = left_steps;
     right_current = right_steps;
-    top_current = top_steps;
+    top_left_current = top_left_steps;
+    top_right_current = top_right_steps;    
             
     // Let's first calculate the current angular velocity of each wheel:
     left_speed = convert*((float) (left_current-left_steps_last));
     right_speed = convert*((float) (right_current-right_steps_last));
-    top_speed = converttop*((float) (top_current-top_steps_last));
+    top_left_speed = converttop*((float) (top_left_current-top_left_steps_last));
+    top_right_speed = converttop*((float) (top_right_current-top_right_steps_last));
 	
     // Now let's store the current counts for the next CheckKinematics call:
     left_steps_last = left_current;
     right_steps_last = right_current;
-    top_steps_last = top_current;
+    top_left_steps_last = top_left_current;
+    top_right_steps_last = top_right_current; 
 	
     // Now, let's calculate the error between the actual and desired velocities 
     float left_error = left_desired-left_speed;
     float right_error = right_desired-right_speed;
-    float top_error = top_desired-top_speed;
+    float top_left_error = top_left_desired-top_left_speed;
+    float top_right_error = top_right_desired-top_right_speed;
     
     // Now let's calculate how long it has been since this function has been called.
     /* dt = ticktime*(((float) ReadTimer2())+1.0)+dtbase; */
@@ -402,12 +435,14 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     // Now, we set the PWM Values:
     if(fabs(left_error) > ERROR_DEADBAND) SetSpeedLeft(left_error, dtbase);
     if(fabs(right_error) > ERROR_DEADBAND) SetSpeedRight(right_error, dtbase);
-    if(fabs(top_error) > ERROR_DEADBAND) SetSpeedTop(top_error, dtbase);
+    if(fabs(top_left_error) > ERROR_DEADBAND) SetSpeedTopLeft(top_left_error, dtbase);
+    if(fabs(top_right_error) > ERROR_DEADBAND) SetSpeedTopRight(top_right_error, dtbase);
 
     // Now let's get the wheels speeds and convert them into translational velocities
     Vr = (D/2.0)*(right_speed);
     Vl = (D/2.0)*(left_speed);
-    Vt = (d_pulley/2.0)*(top_speed);
+    Vtl = (d_pulley/2.0)*(top_left_speed);
+    Vtr = (d_pulley/2.0)*(top_right_speed);
 		
     // Let's calculate the distance to the instantaneous center of rotation and the angular vel.
     R = L*((Vl+Vr)/(Vr-Vl));
@@ -433,16 +468,8 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     if(theta >= 2.0*M_PI) theta -= 2.0*M_PI;	
 	
     // Now, let's update the height of our string
-    height += Vt*dtbase;
-	
-    if(height_flag == 1)
-    {
-	if(fabs(height_sent-height) < 0.01)
-	{
-	    height_flag = 0;
-	    top_desired = 0.0;
-	}
-    }
+    height_left += Vtl*dtbase;
+    height_right += Vtr*dtbase;
 	
     // Are we just controlling wheel speeds?
     if (exec_state == 1)
@@ -510,10 +537,17 @@ int GetStepsRight(void)
 }
 
 // Following function returns the number of 
-// steps that the right motor has taken:
-int GetStepsTop(void)
+// steps that the top left motor has taken:
+int GetStepsTopLeft(void)
 {
-    return top_steps;
+    return top_left_steps;
+}
+
+// Following function returns the number of 
+// steps that the top left motor has taken:
+int GetStepsTopRight(void)
+{
+    return top_right_steps;
 }
 
 // The following function returns the current speed 
@@ -524,17 +558,24 @@ float GetSpeedLeft(void)
 }
 
 // The following function returns the current speed 
-// of the left motor
+// of the right motor
 float GetSpeedRight(void)
 {
     return right_speed;
 }
 
 // The following function returns the current speed 
-// of the left motor
-float GetSpeedTop(void)
+// of the top left motor
+float GetSpeedTopLeft(void)
 {
-    return top_speed;
+    return top_left_speed;
+}
+
+// The following function returns the current speed 
+// of the top right motor
+float GetSpeedTopRight(void)
+{
+    return top_right_speed;
 }
 
 // Next function allows to user to re-set a "home" position by
@@ -556,12 +597,21 @@ void SetStepsRight(int set_steps)
 }
 
 // Next function allows to user to re-set a "home" position by
-// manually changing the number of encoder steps for the right motor:
-void SetStepsTop(int set_steps)
+// manually changing the number of encoder steps for the top left motor:
+void SetStepsTopLeft(int set_steps)
 {
     INTEnable(INT_OC2, 0);
-    top_steps = set_steps;
+    top_left_steps = set_steps;
     INTEnable(INT_OC2, 1);
+}
+
+// Next function allows to user to re-set a "home" position by
+// manually changing the number of encoder steps for the top right motor:
+void SetStepsTopRight(int set_steps)
+{
+    INTEnable(INT_OC1, 0);
+    top_right_steps = set_steps;
+    INTEnable(INT_OC1, 1);
 }
 
 // This function allows the user to specify the desired left motor speed:
@@ -608,7 +658,6 @@ void SetSpeedLeft(float error, float dt)  // motor speed in rad/s
     }
 }
 
-
 // This function allows the user to specify the desired right motor speed:
 void SetSpeedRight(float error, float dt)  // motor speed in rad/s
 {
@@ -651,8 +700,8 @@ void SetSpeedRight(float error, float dt)  // motor speed in rad/s
     }
 }
 
-// This function allows the user to specify the desired top motor speed:
-void SetSpeedTop(float error, float dt)  // motor speed in rad/s
+// This function allows the user to specify the desired top left motor speed:
+void SetSpeedTopLeft(float error, float dt)  // motor speed in rad/s
 {
     static float sum_error = 0.0;	// This is the integrated error
     static float d_error = 0.0;		// This is the derivative error
@@ -679,17 +728,54 @@ void SetSpeedTop(float error, float dt)  // motor speed in rad/s
 	PWMVal = MAX_RESOLUTION;
 	sum_error -= error;
     }
-	
-	
     if(total_error > 0)
     {
-	DIRECTION_PIN_T = FORWARD;
+	DIRECTION_PIN_TL = FORWARD;
 	SetDCOC2PWM(PWMVal);
     }
     else
     {
-	DIRECTION_PIN_T = REVERSE;
+	DIRECTION_PIN_TL = REVERSE;
 	SetDCOC2PWM(PWMVal);
+    }
+}
+
+void SetSpeedTopRight(float error, float dt)  // motor speed in rad/s
+{
+    static float sum_error = 0.0;	// This is the integrated error
+    static float d_error = 0.0;		// This is the derivative error
+    static float last_d_error = 0.0;	// This is the previous derivative error    
+    static float last_error = 0.0;	// This is the error sent to SetSpeed functions last time for D-control
+    static float total_error = 0.0;	// This is the sum of all three components of the error
+    static unsigned int PWMVal = 0;     // The actual value that will get stored in the PMW register
+    static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
+
+    // Calculate integrated error:
+    sum_error += error;
+    // Calculate filtered derivative error:
+    d_error = (dtbase*error+dtbase*last_error+(2*tau-dtbase)*last_d_error)/(dtbase+2*tau);
+    // Calculate total error:
+    total_error = error*kp+sum_error*ki+d_error*kd;
+    // Get PWM Value:
+    PWMVal = (unsigned int) (fabs(total_error));
+    // Set stored values:
+    last_error = error;
+    last_d_error = d_error;
+    
+    if(PWMVal > MAX_RESOLUTION) 
+    {
+	PWMVal = MAX_RESOLUTION;
+	sum_error -= error;
+    }
+    if(total_error > 0)
+    {
+	DIRECTION_PIN_TR = FORWARD;
+	SetDCOC1PWM(PWMVal);
+    }
+    else
+    {
+	DIRECTION_PIN_TR = REVERSE;
+	SetDCOC1PWM(PWMVal);
     }
 }
 
@@ -701,20 +787,25 @@ void InitMotorPWM(void)
     TRISDbits.TRISD2 = 0;
     TRISDbits.TRISD4 = 0;
     TRISDbits.TRISD1 = 0;
+    TRISDbits.TRISD0 = 0;
 	
     // Direction Pins to outputs:
     TRISDbits.TRISD3 = 0;
     TRISDbits.TRISD5 = 0;
     TRISCbits.TRISC13 = 0;
-	
-    // init OC2 module, on pin D1
-    OpenOC2( OC_ON | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
-	
+    TRISDbits.TRISD10 = 0;
+    
     // init OC5 module, on pin D4
     OpenOC5( OC_ON | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
 	
     // init OC3 module, on pin D2
     OpenOC3( OC_ON | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
+
+    // init OC2 module, on pin D1
+    OpenOC2( OC_ON | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
+
+    // init OC1 module, on pin D1
+    OpenOC1( OC_ON | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
 	
     // init Timer3 
     OpenTimer3(T3options , MAX_RESOLUTION);
@@ -723,17 +814,18 @@ void InitMotorPWM(void)
 
 void InitEncoder(void)
 {	
-    // Let's set the Channel_B pins (D11) to be digital inputs:
     // Channel A inputs:
     TRISDbits.TRISD12 = 1;
     TRISDbits.TRISD9 = 1;
     TRISDbits.TRISD11 = 1;
+    TRISDbits.TRISD8 = 1;    
 	
     // Channel B inputs:
     TRISDbits.TRISD13 = 1;
     TRISDbits.TRISD6 = 1;
     TRISCbits.TRISC14 = 1;
-	
+    TRISDbits.TRISD7 = 1;
+    
     // Now we can configure the CHANNEL_A_L pin (D12) to be an input capture pin:
     // - Capture Every edge
     // - Enable capture interrupts
@@ -752,7 +844,7 @@ void InitEncoder(void)
     // Configure the interrupt options
     ConfigIntCapture2(IC_INT_ON | IC_INT_PRIOR_5);
 	
-    // Now we can configure the CHANNEL_A_T pin (D11) to be an input capture pin:
+    // Now we can configure the CHANNEL_A_TL pin (D11) to be an input capture pin:
     // - Capture Every edge
     // - Enable capture interrupts
     // - Use Timer 3 source
@@ -760,7 +852,16 @@ void InitEncoder(void)
     OpenCapture4( IC_EVERY_EDGE | IC_INT_1CAPTURE | IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
     // Configure the interrupt options
     ConfigIntCapture4(IC_INT_ON | IC_INT_PRIOR_5);
-	
+
+    // Now we can configure the CHANNEL_A_TR pin (D8) to be an input capture pin:
+    // - Capture Every edge
+    // - Enable capture interrupts
+    // - Use Timer 3 source
+    // - Capture rising edge first
+    OpenCapture1( IC_EVERY_EDGE | IC_INT_1CAPTURE | IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
+    // Configure the interrupt options
+    ConfigIntCapture1(IC_INT_ON | IC_INT_PRIOR_5);
+
     // Enable system-wide interrupts:
     INTEnableSystemMultiVectoredInt();
 } 
@@ -781,7 +882,9 @@ void InitUART2(int pbClk)
     // CTS and RTS pins are disabled 
     // UxRX idle state is '1' 
     // 16x baud clock - normal speed
-#define config1		UART_EN | UART_IDLE_CON | UART_RX_TX | UART_DIS_WAKE | UART_DIS_LOOPBACK | UART_DIS_ABAUD | UART_NO_PAR_8BIT | UART_1STOPBIT | UART_IRDA_DIS | UART_DIS_BCLK_CTS_RTS| UART_NORMAL_RX | UART_BRGH_SIXTEEN
+#define config1		UART_EN | UART_IDLE_CON | UART_RX_TX | UART_DIS_WAKE | \
+	UART_DIS_LOOPBACK | UART_DIS_ABAUD | UART_NO_PAR_8BIT | UART_1STOPBIT | \
+	UART_IRDA_DIS | UART_DIS_BCLK_CTS_RTS| UART_NORMAL_RX | UART_BRGH_SIXTEEN
 	
     // define setup Configuration 2 for OpenUARTx
     // IrDA encoded UxTX idle state is '0'
@@ -791,10 +894,11 @@ void InitUART2(int pbClk)
     // Interrupt on every char received
     // Disable 9-bit address detect
     // Rx Buffer Over run status bit clear
-#define config2		UART_TX_PIN_LOW | UART_RX_ENABLE | UART_TX_ENABLE | UART_INT_TX | UART_INT_RX_CHAR | UART_ADR_DETECT_DIS | UART_RX_OVERRUN_CLEAR	
+#define config2		UART_TX_PIN_LOW | UART_RX_ENABLE | UART_TX_ENABLE | \
+	UART_INT_TX | UART_INT_RX_CHAR | UART_ADR_DETECT_DIS | UART_RX_OVERRUN_CLEAR	
 
     // Open UART2 with config1 and config2
-    OpenUART2( config1, config2, pbClk/16/BAUDRATE-1);	// calculate actual BAUD generate value.
+    OpenUART2( config1, config2, pbClk/16/BAUDRATE-1);
 		
     // Configure UART2 RX Interrupt with priority 6
     ConfigIntUART2(UART_INT_PR6 | UART_RX_INT_EN);
@@ -1041,7 +1145,8 @@ void PoseUpdate(void)
 	// the next, and our error is bad enough, we can go ahead and try to fix it
 	if (exec_state == 0)
 	{
-	    if((powf((x_pos-x_sent),2.0)+powf((y_pos-y_sent),2.0) > 3.0) || (fabs(theta-ori_sent) > 1.571))
+	    if((powf((x_pos-x_sent),2.0)+powf((y_pos-y_sent),2.0) > 3.0)
+	       || (fabs(theta-ori_sent) > M_PI/2.0))
 	    {
 		pose_flag = 1;
 		exec_state = 2;
@@ -1053,12 +1158,14 @@ void PoseUpdate(void)
 	exec_state = 1;
 	left_desired = 0.0;
 	right_desired = 0.0;
-	top_desired = 0.0;
+	top_left_desired = 0.0;
+	top_right_desired = 0.0;
 		
 	x_pos = 0.0;
 	y_pos = 0.0;
 	theta = 0.0;
-	height = 0.0;
+        height_left = 0.0;
+	height_right = 0.0;
 	while(BusyUART2());
 	putsUART2("Coordinate System Reset\r\n");
     }
@@ -1068,12 +1175,11 @@ void PoseUpdate(void)
 	exec_state = 1;
 	left_desired = InterpNumber(&Command_String[2]);
 	right_desired = InterpNumber(&Command_String[5]);	
-	top_desired = InterpNumber(&Command_String[8]);
-	/* mLED_3_Toggle(); */
+	top_left_desired = InterpNumber(&Command_String[8]);
+	top_right_desired = top_left_desired;
 	
 	// We just received commands for explicitly controlling the wheel speeds, let's force the pose control
 	// to stop executing:
-	height_flag = 0;
 	pose_flag = 0;
     }
     else if (data == 's')
@@ -1087,33 +1193,9 @@ void PoseUpdate(void)
 	exec_state = 1;
 	left_desired = 0.0;
 	right_desired = 0.0;
-	top_desired = 0.0;
+	top_left_desired = 0.0;
+	top_right_desired = 0.0;
 	movement_flag = 0;
-    }
-    else if (data == 't')
-    {
-    	char top_state;
-    	// Get what mode we are in:
-    	top_state = Command_String[2];
- 	top_desired = InterpNumber(&Command_String[4]);
-		
-    	if(top_state == '0')
-    	{
-    	    // If this is a zero, we are doing height control.
-
-	    // Get the height:
-	    height_sent = InterpNumber(&Command_String[9]);
-
-	    // Now, do we need to move up or down?
-    	    if(height_sent <= height) top_desired = -top_desired;
-    	    // Let's set the position control flag:
-    	    height_flag = 1;
-    	}
-    	else if(top_state == '1')
-    	{
-    	    // If this is a one, we are just controlling speed:
-       	    height_flag = 0;
-    	}
     }
     else if (data == 'w')
     {
@@ -1126,7 +1208,6 @@ void PoseUpdate(void)
     	CreateAndSendArray(0, buffer);
 	ClearEventWDT();
     	EnableWDT();
-	total_replies++;
     }
     else if (data == 'e')
     {
@@ -1134,7 +1215,7 @@ void PoseUpdate(void)
     	// so let's send it out:
     	DisableWDT();
     	// Make string to send out:
-    	MakeString(buffer,'e',left_speed,right_speed,top_speed,3);
+    	MakeString(buffer,'e',left_speed,right_speed,top_left_speed,3);
     	// Add checksum and send to master node:
     	CreateAndSendArray(0, buffer);
     	ClearEventWDT();

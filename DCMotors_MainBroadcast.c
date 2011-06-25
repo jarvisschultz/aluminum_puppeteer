@@ -42,7 +42,6 @@ XBee network during initialization.
 #define ID_ADDRESS_FLAG	       (0x9D07CFE0)
 char ID, ID_flag;
 unsigned int *ptr_ID, *ptr_ID_flag;
-volatile int total_replies = 0;
 
 /** User Called Functions *************************************/
 
@@ -158,11 +157,6 @@ int main()
 	RuntimeOperation();
 	j++;
 	if(j%500000 == 0) mLED_4_Toggle();
-
-	if (!swUser)
-	{
-	    printf("%d\n\r", total_replies);
-	}
 
 	// To ensure that the PIC code is not stuck somehow, we
 	// use a watchdog timer. Let's reset it here:
