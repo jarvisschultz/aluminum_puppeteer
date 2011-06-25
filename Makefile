@@ -22,5 +22,5 @@ Al_Robot.elf : $(OBJ)
 	$(CD)$(CC) -mprocessor=32MX460F512L -v -Wall -c $< -o $@ -I"/opt/microchip/MicrochipSolutions/Microchip/Include/" -I"." -g
 
 clean : 
-	$(RM) $(OBJ) "Al_Robot.elf" "Al_Robot.hex"
+	$(RM) $(OBJ) "Al_Robot.elf" "Al_Robot.hex" "Al_Robot.map"
 

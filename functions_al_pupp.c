@@ -368,13 +368,13 @@ void __ISR(_INPUT_CAPTURE_1_VECTOR, ipl5) CheckPosition_t_r()
     {
 	// So, we know that we just detected a rising edge on channel A.  Let's determine whether
 	// channel b is high or low to determine our direction:
-	if(tempB) top_right_steps++;
-	else top_right_steps--;
+	if(tempB) top_right_steps--;
+	else top_right_steps++;
     }
     else if(!tempA)
     {
-	if(tempB) top_right_steps--;
-	else top_right_steps++;
+	if(tempB) top_right_steps++;
+	else top_right_steps--;
     }
 }
 
@@ -777,6 +777,7 @@ void SetSpeedTopRight(float error, float dt)  // motor speed in rad/s
 	PWMVal = MAX_RESOLUTION;
 	sum_error -= error;
     }
+    
     if(total_error < 0)
     {
 	DIRECTION_PIN_TR = FORWARD;
