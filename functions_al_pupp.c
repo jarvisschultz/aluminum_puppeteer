@@ -63,7 +63,7 @@ control four motors.
 #define CPR  100.0	               // counts per revolution of an encoder
 #define dtbase (1.0/frequency)         // The period of CheckKinematics calls
 #define convert (M_PI/(CPR*dtbase*GEARRATIO)) 
-#define converttop (M_PI/(CPR*dtbase*TOPGEARRATIO)      
+#define converttop (M_PI/(CPR*dtbase*TOPGEARRATIO))      
 #define ticktime (2.0/(80000000.0))    // For calculating times since timer
 				       // ISR's were initially called
 #define MAX_BAD_DATA_TOTAL (10)	       
