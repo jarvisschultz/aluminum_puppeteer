@@ -40,10 +40,10 @@ control four motors.
 #define DIRECTION_PIN_TR LATDbits.LATD10
 #define FORWARD		0
 #define REVERSE		1
-#define T2options	T2_ON | T2_PS_1_2 | T2_SOURCE_INT  	// These are the setup options for timer two (CheckKinematics)
-#define T3options 	T3_ON | T3_PS_1_1 | T3_SOURCE_INT  	// These are the setup options for timer three (Motor PWM Period)
-#define T4options 	T4_ON | T4_PS_1_256 | T4_SOURCE_INT  	// These are the setup options for timer three (Motor PWM Period)
-#define BAUDRATE	(111111)				// This is the rate that we will communicate over RS232 at
+#define T2options	T2_ON | T2_PS_1_2 | T2_SOURCE_INT  	
+#define T3options 	T3_ON | T3_PS_1_1 | T3_SOURCE_INT  	
+#define T4options 	T4_ON | T4_PS_1_256 | T4_SOURCE_INT  	
+#define BAUDRATE	(111111)				
 #define CHANNEL_A_L	PORTDbits.RD12
 #define CHANNEL_B_L	PORTDbits.RD13
 #define CHANNEL_A_R	PORTDbits.RD9
@@ -52,18 +52,20 @@ control four motors.
 #define CHANNEL_B_TL	PORTCbits.RC14
 #define CHANNEL_A_TR	PORTDbits.RD8
 #define CHANNEL_B_TR	PORTDbits.RD7
-#define MAX_RESOLUTION	3999	       // Proportional to period of PWM (represents the maximum 
-				       // number that we can use for PWM function)
-#define ERROR_DEADBAND	0.05           // This is a deadband where we do nothing to the motors
-#define FULL_PACKET_SIZE     12        // This is the length of a data string
+#define MAX_RESOLUTION	3999  // Proportional to period of PWM (represents the
+			      // maximum number that we can use for PWM function)
+#define ERROR_DEADBAND	0.05  
+#define FULL_PACKET_SIZE     12    
 #define SMALL_PACKET_SIZE    3 
-#define frequency  1500	       // Let's check the kinematics this many times per second
-#define GEARRATIO  (19.0*(42.0/46.0))    // The gear ratio of the gearhead on the DC motor
-#define CPR  100.0	               // The number of counts per revolution of the motor's encoder
+#define frequency  1500	       // Frequency we check kinematics at
+#define GEARRATIO  (19.0*(42.0/46.0))    // The gear ratio of the drivetrain
+#define TOPGEARRATIO (19.0*(10.0/14.0))  // Winch gear ratio
+#define CPR  100.0	               // counts per revolution of an encoder
 #define dtbase (1.0/frequency)         // The period of CheckKinematics calls
-#define convert (M_PI/(CPR*dtbase*GEARRATIO)) // For converting angular wheel and motor velocities
-#define converttop (convert*(42.0/46.0))      // For the aluminum puppeteers
-#define ticktime (2.0/(80000000.0))    // For calculating times since timer ISR's were initially called
+#define convert (M_PI/(CPR*dtbase*GEARRATIO)) 
+#define converttop (M_PI/(CPR*dtbase*TOPGEARRATIO)      
+#define ticktime (2.0/(80000000.0))    // For calculating times since timer
+				       // ISR's were initially called
 #define MAX_BAD_DATA_TOTAL (10)	       
 #define MAX_BAD_DATA	(5)
 #define MAX_BAD_COUNTER  (200)
@@ -73,66 +75,75 @@ control four motors.
 
 /** Global Variables **************************************************/
 static short int DATA_LENGTH = 12;
-static float left_speed = 0.0;		// This variable is the current left motor speed in rad/ second
-static float right_speed = 0.0;		// This variable is the current right motor speed in rad/ second
-static float top_left_speed = 0.0;	// This variable is the current top left motor speed in rad/ second
-static float top_right_speed = 0.0;	// This variable is the current top right motor speed in rad/ second
-static long long left_steps = 0;	// This variable is used for tracking how many encoder pulses the left motor has rotated
-static long long right_steps = 0;	// This variable is used for tracking how many encoder pulses the right motor has rotated
-static long long top_left_steps = 0;	// This variable is used for tracking how many encoder pulses the top left motor has rotated
-static long long top_right_steps = 0;	// This variable is used for tracking how many encoder pulses the top right motor has rotated
-static long long left_steps_last = 0;	// This variable is used for tracking how many encoder pulses the left motor had previously rotated
-static long long right_steps_last = 0;  // This variable is used for tracking how many encoder pulses the right motor had previously rotated
+
+// Current motor speeds in rad/ second:
+static float left_speed = 0.0;		
+static float right_speed = 0.0;		
+static float top_left_speed = 0.0;	
+static float top_right_speed = 0.0;
+
+// Total motor encoder counts:
+static long long left_steps = 0;	
+static long long right_steps = 0;	
+static long long top_left_steps = 0;	
+static long long top_right_steps = 0;
+// Old encoder counts for determining velocities:
+
+static long long left_steps_last = 0;	
+static long long right_steps_last = 0;  
 static long long top_left_steps_last = 0;
 static long long top_right_steps_last = 0;
 
-static float x_pos = 0.0;		// This variable is what the PIC sees as its current x-position in some world frame
-static float y_pos = 0.0;		// This variable is what the PIC sees as its current y-position in some world frame
-static float theta = 0.0;		// This variable is what the PIC sees as its current orientation (in radians) w.r.t 
-                                        // the positive global x-axis (between 0 and 2pi)	
-static float height_left = 0.0;		// This is the height of the end of the string.  This height is never negative, it is the
-                                        // height relative to the height set by the string when it is all the way down.
+// Robot's pose estimate:
+static float x_pos = 0.0;		
+static float y_pos = 0.0;		
+static float theta = 0.0;  // w.r.t positive x-axis (clamped between 0 and 2pi)
+static float height_left = 0.0; // never negative; relative to the height set
+				// by string when it is all the way down.
 static float height_right = 0.0;
-static float d_pulley = 0.034924999999999998;    // This is the diameter of the pulley that the string winds onto (meters)
-static float L = 0.132334/2;		// This is one-half of the robot's track width in meters
-static float D = 0.07619999999999;	// Diameter of the wheel in meters
-static float speed = 6.0;		// This is the default wheel revolution rate when in pose control mode (rad/s).
-static unsigned char RS232_In_Buffer[FULL_PACKET_SIZE] = "zzzzzzzzzzzz";//  This is an array that is initialized with 
-	                                                    // useless data in it; it is used for temporary 
-                                                            // storage of data brought in from the PC on UART2
+
+// Robot constants (in meters):
+static float d_pulley = 0.034924999999999998; 
+static float L = 0.132334/2;		
+static float D = 0.07619999999999;
+static float speed = 6.0;	// default driving speed
+
+// Communication buffers and miscellaneous:
+static unsigned char RS232_In_Buffer[FULL_PACKET_SIZE] = "zzzzzzzzzzzz";
 static unsigned char Command_String[FULL_PACKET_SIZE] = "zzzzzzzzzzzz";
-static int i = 0;	        // This is for marking the position in the RS232_In_Buffer that we are writing into.
-static int data_flag = 0;  	// This variable is used for telling if we have received updated information about the robot's
-                                // current position or current instructions.  If we have, we break out of the current control loop
-                                // and recalculate what we need to do.
-static int pose_flag = 0;  	// This flag is used for determining when the SetPose function should be called.  If we are just 
-                                // sitting in main waiting for an instruction to do, the PoseUpdate function should call SetPose.
-                                // if we have reached the PoseUpdate function while executing SetPose, SetPose will recursively call
-                                // itself and PoseUpdate does not need to call SetPose
-static int header_flag = 0;	// This flag is used for determining if we have received a header on the receive pins.
-static float x_sent = 0.0; 	// This is the value of the x-coordinate received
-static float y_sent = 0.0; 	// This is the value of the y-coordinate received
-static float ori_sent = 0.0;	// This is the value of the orientation received
-/* static float height_left_sent = 0.0;	// This is the value of the desired height of the end of the string in inches */
+static int i = 0;	        // position in RS232_In_Buffer
+static int data_flag = 0;  	
+static int pose_flag = 0;  	
+static int header_flag = 0;
+extern char ID;
+static char BROADCAST = '9';
+
+// Desired pose variables:
+static float x_sent = 0.0;
+static float y_sent = 0.0;
+static float ori_sent = 0.0;
+/* static float height_left_sent = 0.0;  */
 /* static float height_right_sent = 0.0; */
-static float first_angle = 0.0; 	// This is the angle of the vector from the robots current position towards its goal position
-                                        // to begin heading towards the new point sent over RS232
-static int exec_state = 0;	        // This variable is to determine which mode of operation we are currently in:
-						// 0) Just sitting there
-						// 1) Wheel Speed Control
-						// 2) Initial rotation towards destination
-						// 3) Driving towards destination
-						// 4) Rotating towards final orientation
-static float left_desired;	// This is the desired wheel speed of the left motor in rad/sec sent over RS232
-static float right_desired;	// This is the desired wheel speed of the right motor in rad/sec sent over RS232	
-static float top_left_desired;	// This is the desired wheel speed of the top motor in rad/sec sent over RS232
-static float top_right_desired;	// This is the desired wheel speed of the top motor in rad/sec sent over RS232	
-//static UINT8 STR[1024];		// An empty string we use for sending data
+
+// Miscellaneous pose control variables:
+static float first_angle = 0.0; 	// angle of the vector from the robots
+					// current position towards its goal position
+static int exec_state = 0;	   // Mode of operation:
+					// 0) Just sitting there
+					// 1) Wheel Speed Control
+				        // 2) Initial rotation towards destination
+					// 3) Driving towards destination
+					// 4) Rotating towards final orientation
+// Speed control variables:
+static float left_desired;	
+static float right_desired;	
+static float top_left_desired;	
+static float top_right_desired;	
+
+// Controller gains:
 static float kp = 500;		// Gain on the proportional error term
 static float ki = 50;		// Gain on the integral error term
 static float kd = 0.1;		// Gain on the derivative error term
-extern char ID;
-static char BROADCAST = '9';
 
 // Add a bunch of variables for communication safety:
 static unsigned char header_list[10]={'p','l','r','h','s','q','t','m','w','e'};
@@ -180,7 +191,7 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 	if (midstring_flag != 1)
 	{
 	    for(j=0;j<sizeof(header_list);j++)
-	    {
+    {
 		if (temp == header_list[j])
 		{
 		    i = 0;
