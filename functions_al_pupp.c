@@ -1151,30 +1151,8 @@ void PoseUpdate(void)
 	x_pos = InterpNumber(&Command_String[2]);
 	y_pos = InterpNumber(&Command_String[5]);
 	theta = InterpNumber(&Command_String[8]);	
-		
-	// So, we have just received an updated position and orientation, we need to 
-	// decide if it is worth it to fix the error.
-		
-	// If we are currently executing a point command, and we are currently translating,
-	// it is very easy to make an adjustment:
-	if (exec_state == 3) 
-	{
-	    pose_flag = 1;
-	    exec_state = 2;
-	}
-		
-	// If we are done executing a point command and basically just sitting waiting for 
-	// the next, and our error is bad enough, we can go ahead and try to fix it
-	if (exec_state == 0)
-	{
-	    if((powf((x_pos-x_sent),2.0)+powf((y_pos-y_sent),2.0) > 3.0)
-	       || (fabs(theta-ori_sent) > M_PI/2.0))
-	    {
-		pose_flag = 1;
-		exec_state = 2;
-	    }
-	}
     }
+
     else if (data == 'r')
     {
 	exec_state = 1;
