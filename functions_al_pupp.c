@@ -103,10 +103,10 @@ static float height_left = 0.0; // never negative; relative to the height set
 static float height_right = 0.0;
 
 // Robot constants (in meters):
-static float d_pulley = 0.034924999999999998; 
-static float L = 0.132334/2;		
-static float D = 0.07619999999999;
-static float speed = 6.0;	// default driving speed
+static float DPULLEY = 0.034924999999999998; 
+static float WIDTH = 0.132334/2.0;		
+static float DWHEEL = 0.07619999999999;
+static float speed = 10.0;	// default driving speed
 
 // Communication buffers and miscellaneous:
 static unsigned char RS232_In_Buffer[FULL_PACKET_SIZE] = "zzzzzzzzzzzz";
@@ -146,7 +146,7 @@ static float ki = 50;		// Gain on the integral error term
 static float kd = 0.1;		// Gain on the derivative error term
 
 // Add a bunch of variables for communication safety:
-static unsigned char header_list[10]={'p','l','r','h','s','q','t','m','w','e'};
+static unsigned char header_list[11]={'p','l','r','h','s','q','t','m','w','e','d'};
 /******************************************************************************/
 // Note that the header characters mean the following:
 //	'p' = Drive to a desired pose
@@ -160,6 +160,7 @@ static unsigned char header_list[10]={'p','l','r','h','s','q','t','m','w','e'};
 //	'm' = Start command; must receive this before driving can begin
 //	'w' = Current pose request
 //	'e' = Current motor speeds request
+//	'd' = Translational and rotational velocity command
 /******************************************************************************/
 static short int bad_data_total = 0;
 static short int bad_data = 0;
@@ -460,14 +461,14 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     if(fabs(top_right_error) > ERROR_DEADBAND) SetSpeedTopRight(top_right_error, dtbase);
 
     // Now let's get the wheels speeds and convert them into translational velocities
-    Vr = (D/2.0)*(right_speed);
-    Vl = (D/2.0)*(left_speed);
-    Vtl = (d_pulley/2.0)*(top_left_speed);
-    Vtr = (d_pulley/2.0)*(top_right_speed);
+    Vr = (DWHEEL/2.0)*(right_speed);
+    Vl = (DWHEEL/2.0)*(left_speed);
+    Vtl = (DPULLEY/2.0)*(top_left_speed);
+    Vtr = (DPULLEY/2.0)*(top_right_speed);
 		
     // Let's calculate the distance to the instantaneous center of rotation and the angular vel.
-    R = L*((Vl+Vr)/(Vr-Vl));
-    omega = (Vr-Vl)/(2.0*L);
+    R = WIDTH*((Vl+Vr)/(Vr-Vl));
+    omega = (Vr-Vl)/(2.0*WIDTH);
 		
     // Now we do the forward kinematics
     if (fabs(R) > 10000.0) // This would imply that the robot is essentially going straight
@@ -1182,6 +1183,23 @@ void PoseUpdate(void)
 	// to stop executing:
 	pose_flag = 0;
     }
+    
+    else if (data == 'd')
+    {
+	exec_state = 1;
+	float v_robot = InterpNumber(&Command_String[2]);
+	float w_robot = InterpNumber(&Command_String[5]);
+	float v_winch = InterpNumber(&Command_String[8]);
+
+	//  Now we need to convert these into angular velocities for the motors:
+	left_desired = 2.0*(v_robot-w_robot*WIDTH)/DWHEEL;
+	right_desired = 2.0*(v_robot+w_robot*WIDTH)/DWHEEL;
+	top_left_desired = 2.0*v_winch/DPULLEY;
+	top_right_desired = top_left_desired;
+
+	pose_flag = 0;
+    }
+    
     else if (data == 's')
     {
 	speed = InterpNumber(&Command_String[2]);
