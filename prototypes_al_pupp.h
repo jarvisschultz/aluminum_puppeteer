@@ -6,8 +6,10 @@ Jarvis Schultz and Marcus Hammond
 This file simply contains the function prototypes/ declarations
 *************************************************/
 #ifndef _MOTORS
-	#define _MOTORS
-#include <Compiler.h>	
+
+#define _MOTORS
+#include <plib.h>
+#include <p32xxxx.h>
 void SetStepsLeft(int set_steps);   	// This function manually changes the number stored in the number of steps variable for the left motor
 void SetSpeedLeft(float motor_speed, float dt); 	// This function sets the left motor speed at the desired speed and begins driving the motor
 float GetSpeedLeft(void);				// This function simply returns the current value of the speed set for the left motor in (steps/sec)
@@ -34,7 +36,7 @@ void PoseUpdate(void);					// Once we have received a full set of instructions, 
 void InitTimer2(void);					// This function initializes timer 2
 void InitTimer4(void);					// This function initializes timer 4
 void RuntimeOperation(void);    			// This function actually executes everything.  It needs to be called repeatedly in the main loop.
-float min(float a, float b);			        // This function returns the minimum value of two floats passed into it.
+float find_min(float a, float b);			        // This function returns the minimum value of two floats passed into it.
 void InitMotorPWM(void);				// This initializes the pins that are used for PWM control of the DC motors
 void InitEncoder(void);					// This function initializes the IC pins that are being used for reading encoder pulses
 void SendDataBuffer(const char *buffer, UINT32 size);	// This is a function that is used for sending data over UART2

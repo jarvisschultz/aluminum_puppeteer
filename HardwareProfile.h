@@ -45,7 +45,8 @@
 #ifndef HARDWARE_PROFILE_UBW32_H
 #define HARDWARE_PROFILE_UBW32_H
 
-#include "Compiler.h"
+#include <plib.h>
+#include <p32xxxx.h>
 
 typedef unsigned char uint8;
 typedef signed char int8;

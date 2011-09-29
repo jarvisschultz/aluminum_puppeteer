@@ -21,7 +21,6 @@ control four motors.
 /** Includes ************************************************/
 #include "HardwareProfile.h"
 #include <plib.h>
-#include <Compiler.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1259,9 +1258,9 @@ void RuntimeOperation(void)
 }
 
 // This function is for determining the minium of two numbers:
-float	min(float a, float b)
+float find_min(float a, float b)
 {
-    return (a < b ? a : b);
+    return ((a < b) ? a : b);;
 }
 
 
@@ -1408,7 +1407,7 @@ void CreateAndSendArray(unsigned short id, unsigned char *DataString)
 
     // Fill packet:
     packet[0] = DataString[0];
-    sprintf(&packet[1],"%d",id);
+    sprintf((char*) &packet[1],"%d",id);
         for(i = 2; i < FULL_PACKET_SIZE-1; i++)
 	packet[i] = DataString[i-1];
 
@@ -1420,7 +1419,7 @@ void CreateAndSendArray(unsigned short id, unsigned char *DataString)
     packet[FULL_PACKET_SIZE-1] = checksum;
 
     // Now, we can send the data out:
-    SendDataBuffer(packet, FULL_PACKET_SIZE);
+    SendDataBuffer((char*) packet, FULL_PACKET_SIZE);
 }
 
 void delay(void)
