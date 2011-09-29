@@ -104,7 +104,8 @@ static float height_right = 0.0;
 
 // Robot constants (in meters):
 static float DPULLEY = 0.034924999999999998; 
-static float WIDTH = 0.132334/2.0;		
+/* static float WIDTH = 0.132334/2.0; */
+static float WIDTH = 0.148/2.0;
 static float DWHEEL = 0.07619999999999;
 static float speed = 10.0;	// default driving speed
 
