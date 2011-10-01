@@ -68,7 +68,7 @@ control four motors.
 #define MAX_BAD_DATA_TOTAL (10)	       
 #define MAX_BAD_DATA	(5)
 #define MAX_BAD_COUNTER  (200)
-#define timeout_frequency (10)
+#define timeout_frequency (20)
 #define SYS_FREQ	(80000000L)
 
 
@@ -393,23 +393,17 @@ void __ISR(_INPUT_CAPTURE_1_VECTOR, ipl5) CheckPosition_t_r()
 
 void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout()
 {
-    static int timeout_count = 0;
-    timeout_count++;
-    if (timeout_count%5 == 0)
+    // If any motor is running, and timeout_flag is high, we are going to reset:
+    if (timeout_flag == 1)
     {
-	// If any motor is running, and timeout_flag is high, we are going to reset:
-	if (timeout_flag == 1)
+	if( (fabs(left_desired) >= 0.1) || (fabs(right_desired) >= 0.1)
+	    || (fabs(top_left_desired) >= 0.1) || (fabs(top_right_desired) >= 0.1))
 	{
-	    if( (fabs(left_desired) >= 0.1) || (fabs(right_desired) >= 0.1)
-		|| (fabs(top_left_desired) >= 0.1) || (fabs(top_right_desired) >= 0.1))
-	    {
-		// Reset!
-		Reset_Robot();
-	    }
+	    // Reset!
+	    Reset_Robot();
 	}
-	timeout_flag = 1;
-	
     }
+    timeout_flag = 1;
     mT4ClearIntFlag();
 }
 
