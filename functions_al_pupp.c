@@ -68,7 +68,7 @@ control four motors.
 #define MAX_BAD_DATA_TOTAL (10)	       
 #define MAX_BAD_DATA	(5)
 #define MAX_BAD_COUNTER  (200)
-#define timeout_frequency (20)
+#define timeout_frequency (10)
 #define SYS_FREQ	(80000000L)
 
 
