@@ -16,6 +16,20 @@ EDIT: 5-25-2011
 More significant changes so that the new aluminum puppeteers can
 control four motors.
 
+EDIT: 9-5-2011
+
+Added a new mode of communication where the computer can send a 'd' to
+control the robot's translational and rotational velocities. As well
+as the winches translational velocity.
+
+EDIT: 10-2-2011
+
+Adding more possible types of communication.  Adding a longer packet
+size with 4 floats so that the user can send commands to individaully
+control each motor's speed as well as a new pose control scheme where
+the robot uses its own odometry as a sensor to run a kinematic
+controller for trajectory following.
+
 **************************************************************/
 
 /** Includes ************************************************/
@@ -54,9 +68,10 @@ control four motors.
 #define MAX_RESOLUTION	3999  // Proportional to period of PWM (represents the
 			      // maximum number that we can use for PWM function)
 #define ERROR_DEADBAND	0.05  
-#define FULL_PACKET_SIZE     12    
+#define PACKET_SIZE     12    
 #define SMALL_PACKET_SIZE    3 
 #define frequency  1500	       // Frequency we check kinematics at
+#define controller_freq  50    // Frequency to run kinematic controller at
 #define GEARRATIO  (19.0*(42.0/46.0))    // The gear ratio of the drivetrain
 #define TOPGEARRATIO (19.0*(10.0/14.0))  // Winch gear ratio
 #define CPR  100.0	               // counts per revolution of an encoder
@@ -109,8 +124,8 @@ static float DWHEEL = 0.07619999999999;
 static float speed = 10.0;	// default driving speed
 
 // Communication buffers and miscellaneous:
-static unsigned char RS232_In_Buffer[FULL_PACKET_SIZE] = "zzzzzzzzzzzz";
-static unsigned char Command_String[FULL_PACKET_SIZE] = "zzzzzzzzzzzz";
+static unsigned char RS232_In_Buffer[PACKET_SIZE] = "zzzzzzzzzzzz";
+static unsigned char Command_String[PACKET_SIZE] = "zzzzzzzzzzzz";
 static int i = 0;	        // position in RS232_In_Buffer
 static int data_flag = 0;  	
 static int pose_flag = 0;  	
@@ -134,6 +149,7 @@ static int exec_state = 0;	   // Mode of operation:
 				        // 2) Initial rotation towards destination
 					// 3) Driving towards destination
 					// 4) Rotating towards final orientation
+					// 5) Running kinematic controller
 // Speed control variables:
 static float left_desired;	
 static float right_desired;	
@@ -141,12 +157,12 @@ static float top_left_desired;
 static float top_right_desired;	
 
 // Controller gains:
-static float kp = 500;		// Gain on the proportional error term
+static float kp = 250;		// Gain on the proportional error term
 static float ki = 50;		// Gain on the integral error term
-static float kd = 0.1;		// Gain on the derivative error term
+static float kd = 0.5;		// Gain on the derivative error term
 
 // Add a bunch of variables for communication safety:
-static unsigned char header_list[11]={'p','l','r','h','s','q','t','m','w','e','d'};
+static unsigned char header_list[12]={'p','l','r','h','s','q','t','m','w','e','d','k'};
 /******************************************************************************/
 // Note that the header characters mean the following:
 //	'p' = Drive to a desired pose
@@ -161,6 +177,7 @@ static unsigned char header_list[11]={'p','l','r','h','s','q','t','m','w','e','d
 //	'w' = Current pose request
 //	'e' = Current motor speeds request
 //	'd' = Translational and rotational velocity command
+//	'k' = Run kinematic controller for following trajectories
 /******************************************************************************/
 static short int bad_data_total = 0;
 static short int bad_data = 0;
@@ -168,6 +185,17 @@ static short int movement_flag = 0;
 static short int midstring_flag = 0;
 static short int timeout_flag = 0;
 static short int bad_data_counter = 0;
+
+//  Kinematic controller variables:
+static int dir_sign = 1;
+static float tvec[3] = {0.0, 0.0, 0.0};
+static float xvec[3] = {0.0, 0.0, 0.0};
+static float yvec[3] = {0.0, 0.0, 0.0};
+static float k1 = 0.0;
+static float k2 = 0.0;
+static float t_sent = 0.0;
+static float vd = 0.0;
+static float wd = 0.0;
 
 /** Interrupt Handler Functions:**************************************************************************************************/
 // UART 2 interrupt handler
@@ -198,7 +226,7 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 		    i = 0;
 		    header_flag = 1;
 		    midstring_flag = 1;
-		    DATA_LENGTH = FULL_PACKET_SIZE;
+		    DATA_LENGTH = PACKET_SIZE;
 		    // If a request, it is a short packet!
 		    if (temp == 'w' || temp == 'e')
 			DATA_LENGTH = SMALL_PACKET_SIZE;
@@ -421,7 +449,9 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     float R = 0.0;
     /* float dt = 0.0; */
     int top_left_current, top_right_current, left_current, right_current;
-
+    static unsigned int call_count = 0;
+    const unsigned int num = floor(frequency/ controller_freq);
+    
     left_current = left_steps;
     right_current = right_steps;
     top_left_current = top_left_steps;
@@ -480,21 +510,19 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     }
 	
     // Let's force theta to be between 0 and 2pi
-    if(theta < 0.0) theta += 2.0*M_PI;
-    if(theta >= 2.0*M_PI) theta -= 2.0*M_PI;	
+    theta = clamp_angle(theta);
 	
     // Now, let's update the height of our string
     height_left += Vtl*dtbase;
     height_right += Vtr*dtbase;
 	
     // Are we just controlling wheel speeds?
-    if (exec_state == 1)
+    switch (exec_state)
     {
-	// We don't need to check anything then
-    }
-    // Are we performing an initial rotation to begin heading towards our destination?
-    else if (exec_state == 2)
-    {
+    case 1:
+	break;
+    case 2:
+	// Are we performing an initial rotation to begin heading towards our destination?
 	// Now, let's determine if we have reached the desired orientation yet
 	if(fabs(theta-first_angle) <= 0.01 || fabs(fabs(theta-first_angle)-2.0*M_PI) <= 0.01)
 	{
@@ -504,11 +532,10 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 	    right_desired = 0.0;
 	    left_desired = 0.0;
 	}
-    }
-    else if (exec_state == 3)
-    {
+	break;
+    case 3:
 	// Now, are we there yet?
-	if(fabs(x_sent-x_pos) < 1.0 && fabs(y_sent-y_pos) < 1.0)
+	if(fabs(x_sent-x_pos) < 0.05 && fabs(y_sent-y_pos) < 0.05)
 	{
 	    x_pos = x_sent;
 	    y_pos = y_sent;
@@ -517,9 +544,8 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 	    exec_state = 4;
 	    pose_flag = 1;
 	}
-    }
-    else if (exec_state == 4)
-    {	
+	break;
+    case 4:
 	// Now, let's determine if we have reached the final orientation yet
 	if(fabs(theta-ori_sent) <= 0.01 || fabs(fabs(theta-ori_sent)-2.0*M_PI) <= 0.01)
 	{
@@ -531,7 +557,24 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 	    right_desired = 0.0;
 	    left_desired = 0.0;
 	}
+	break;
+    case 5:
+	// this means we are running the kinematic controller
+	if (call_count%num == 0)
+	{
+	    float dth = find_min_angle(ori_sent, theta);
+	    float v_robot = vd*cosf(dth) + k1*(cosf(theta)*(x_sent-x_pos) +
+					       sinf(theta)*(y_sent-y_pos));
+	    float w_robot = wd + k2*dir_sign*(cosf(theta)*(y_sent-y_pos) -
+					      sinf(theta)*(x_sent-x_pos)) + k1*dth;
+	    // now convert to wheel velocities
+	    
+	    /* left_desired = 2.0*(v_robot-w_robot*WIDTH)/DWHEEL; */
+	    /* right_desired = 2.0*(v_robot+w_robot*WIDTH)/DWHEEL; */
+	}
+	break;
     }
+    call_count++;
     mT2ClearIntFlag(); 		// clear interrupt flag
 }
 
@@ -989,7 +1032,7 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot1_f = -1;
 	}
-	costf += min(fabs(first_angle-theta-2*M_PI),fabs(first_angle-theta));
+	costf += find_min(fabs(first_angle-theta-2*M_PI),fabs(first_angle-theta));
 		
 		
 	// Now calculate the minimum cost of the final rotation for this case:
@@ -1004,7 +1047,7 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot2_f = -1;
 	}
-	costf += min(fabs(ori_sent-first_angle),fabs(fabs(ori_sent-first_angle)-2*M_PI));
+	costf += find_min(fabs(ori_sent-first_angle),fabs(fabs(ori_sent-first_angle)-2*M_PI));
 		
 	// Now, let's assume backwards operation.
 	// Start by calculating the minimum cost of the initial rotation for this case:
@@ -1019,7 +1062,7 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot1_b = -1;
 	}
-	costb += min(fabs(first_angle-thback),fabs(fabs(first_angle-thback)-2*M_PI));
+	costb += find_min(fabs(first_angle-thback),fabs(fabs(first_angle-thback)-2*M_PI));
 		
 	// Now calculate the minimum cost of the final rotation for this case:
 	if(((tpback-first_angle >= 0)&&(tpback-first_angle <= M_PI))||
@@ -1033,7 +1076,7 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot2_b = -1;
 	}
-	costb += min(fabs(tpback-first_angle),fabs(fabs(tpback-first_angle)-2*M_PI));
+	costb += find_min(fabs(tpback-first_angle),fabs(fabs(tpback-first_angle)-2*M_PI));
 
 	// Now lets figure out which costs less?
 	if (costf <= costb)
@@ -1124,10 +1167,12 @@ void PoseUpdate(void)
 	INTEnable(INT_U2TX, 1);
 	return;
     }
-    
-    // If the header is a 'p', we have received an instruction for where to go:
-    if (data == 'p')
+
+
+    switch (data)
     {
+	// If the header is a 'p', we have received an instruction for where to go:
+    case 'p':
 	exec_state = 2;
 
 	x_sent = InterpNumber(&Command_String[2]);
@@ -1136,20 +1181,17 @@ void PoseUpdate(void)
 		
 	// Let's set pose_flag so that we know we need to call SetPose()
 	pose_flag = 1;
-    }
-	
-    // If the header byte is an 'l', we have received updated information about the 
-    // robot's current location.
-    else if(data == 'l')
-    {
-	
+	break;
+
+    case 'l':
+	// If the header byte is an 'l', we have received updated information about the 
+	// robot's current location.
 	x_pos = InterpNumber(&Command_String[2]);
 	y_pos = InterpNumber(&Command_String[5]);
 	theta = InterpNumber(&Command_String[8]);	
-    }
+	break;
 
-    else if (data == 'r')
-    {
+    case 'r':
 	exec_state = 1;
 	left_desired = 0.0;
 	right_desired = 0.0;
@@ -1163,23 +1205,23 @@ void PoseUpdate(void)
 	height_right = 0.0;
 	while(BusyUART2());
 	putsUART2("Coordinate System Reset\r\n");
-    }
-    // If we receive an h as the header char, then that means that we will simply control the motor speeds
-    else if (data == 'h')
-    {
+	break;
+	
+    case 'h':
+	// If we receive an h as the header char, then that means that we will
+	// simply control the motor speeds
 	exec_state = 1;
 	left_desired = InterpNumber(&Command_String[2]);
 	right_desired = InterpNumber(&Command_String[5]);	
 	top_left_desired = InterpNumber(&Command_String[8]);
 	top_right_desired = top_left_desired;
 	
-	// We just received commands for explicitly controlling the wheel speeds, let's force the pose control
-	// to stop executing:
+	// We just received commands for explicitly controlling the wheel speeds,
+	// let's force the pose control to stop executing:
 	pose_flag = 0;
-    }
-    
-    else if (data == 'd')
-    {
+	break;
+
+    case 'd':
 	exec_state = 1;
 	float v_robot = InterpNumber(&Command_String[2]);
 	float w_robot = InterpNumber(&Command_String[5]);
@@ -1192,26 +1234,25 @@ void PoseUpdate(void)
 	top_right_desired = top_left_desired;
 
 	pose_flag = 0;
-    }
-    
-    else if (data == 's')
-    {
+	break;
+
+    case 's':
 	speed = InterpNumber(&Command_String[2]);
 	while(BusyUART2());
 	putsUART2("Changed Default Speed\r\n");
-    }
-    else if (data == 'q')
-    {
+	break;
+
+    case 'q':
 	exec_state = 1;
 	left_desired = 0.0;
 	right_desired = 0.0;
 	top_left_desired = 0.0;
 	top_right_desired = 0.0;
 	movement_flag = 0;
-    }
-    else if (data == 'w')
-    {
-    	// This is a request for the robot's current pose, so let's
+	break;
+
+    case 'w':
+	// This is a request for the robot's current pose, so let's
     	// send it out:
     	DisableWDT();
     	// Make string to send out:
@@ -1220,10 +1261,10 @@ void PoseUpdate(void)
     	CreateAndSendArray(0, buffer);
 	ClearEventWDT();
     	EnableWDT();
-    }
-    else if (data == 'e')
-    {
-    	// This is a request for the robot's current motor speeds,
+	break;
+
+    case 'e':
+	// This is a request for the robot's current motor speeds,
     	// so let's send it out:
     	DisableWDT();
     	// Make string to send out:
@@ -1232,6 +1273,14 @@ void PoseUpdate(void)
     	CreateAndSendArray(0, buffer);
     	ClearEventWDT();
     	EnableWDT();
+	break;
+
+    case 'k':
+	// we are going to run the kinematic controller:
+	exec_state = 5;
+	setup_controller();
+	pose_flag = 0;
+	break;
     }
 	
     // Now, let's re-enable all interrupts:
@@ -1254,9 +1303,39 @@ void RuntimeOperation(void)
 // This function is for determining the minium of two numbers:
 float find_min(float a, float b)
 {
-    return ((a < b) ? a : b);;
+    return ((a < b) ? a : b);
 }
 
+// This function is for finding the minimum angle between two angles:
+float find_min_angle(float a, float b)
+{
+    float comps[3];
+    float dth = 0.0;
+    comps[0] = a-b;
+    comps[1] = comps[0]+2.0*M_PI;
+    comps[2] = comps[0]-2.0*M_PI;
+
+    if ( fabs(comps[0]) < fabs(comps[1]))
+    {
+	if (fabs(comps[0]) < fabs(comps[2]))
+	    dth = comps[0];
+	else
+	    dth = comps[2];
+    }
+    else
+    {
+	if (fabs(comps[1]) < fabs(comps[2]))
+	    dth = comps[1];
+	else
+	    dth = comps[2];
+    }
+    return dth;
+}
+
+float sign(float x)
+{
+    return (x < 0) ? -1.0 : ((float)(x > 0));
+}
 
 void SendDataBuffer(const char *buffer, UINT32 size) 
 { 
@@ -1312,7 +1391,7 @@ int Data_Checker(unsigned char* buff)
 	    if(buff[k] == header_list[j])
 	    {
 		// Let's set DATA_LENGTH to the correct value:
-		DATA_LENGTH = FULL_PACKET_SIZE;
+		DATA_LENGTH = PACKET_SIZE;
 		if (buff[k] == 'w' || buff[k] == 'e')
 		    DATA_LENGTH = SMALL_PACKET_SIZE;
 		if (k == DATA_LENGTH-1)
@@ -1402,18 +1481,18 @@ void CreateAndSendArray(unsigned short id, unsigned char *DataString)
     // Fill packet:
     packet[0] = DataString[0];
     sprintf((char*) &packet[1],"%d",id);
-        for(i = 2; i < FULL_PACKET_SIZE-1; i++)
+        for(i = 2; i < PACKET_SIZE-1; i++)
 	packet[i] = DataString[i-1];
 
     // Now, let's calculate a checksum:
     checksum = 0;
-    for(i = 0; i < FULL_PACKET_SIZE-1; i++)
+    for(i = 0; i < PACKET_SIZE-1; i++)
 	checksum += packet[i];
     checksum = 0xFF-(checksum & 0xFF);
-    packet[FULL_PACKET_SIZE-1] = checksum;
+    packet[PACKET_SIZE-1] = checksum;
 
     // Now, we can send the data out:
-    SendDataBuffer((char*) packet, FULL_PACKET_SIZE);
+    SendDataBuffer((char*) packet, PACKET_SIZE);
 }
 
 void delay(void)
@@ -1421,3 +1500,89 @@ void delay(void)
     long unsigned int num_calls = SYS_FREQ/8;
     while(num_calls) num_calls--;
 }
+
+void run_fifo(const float new_val, float *array)
+{
+    int i = 0;
+    for(i=sizeof(array)-1; i>0; i--)
+	array[i] = array[i-1];
+    *array = new_val;
+    return;
+}
+    
+void calculate_controller_gains(void)
+{
+    static float zeta = 0.7;
+    static float b = 10;
+
+    k1 = 2*zeta*sqrtf( powf(wd,2.0) + b*powf(vd,2.0) );
+    k2 = b*fabs(vd);
+
+    return;
+}
+
+void calculate_feedforward_values(const float k)
+{
+    // let's calculate the velocities and accelerations:
+    float dt = tvec[0]-tvec[1];
+    float dt2 = tvec[1]-tvec[2]; 
+    float xd = (xvec[0]-xvec[1])/dt;
+    float yd = (yvec[0]-yvec[1])/dt;
+    float xdp = (xvec[1]-xvec[2])/dt2;
+    float ydp = (yvec[1]-yvec[2])/dt2;
+    float xdd = (xd-xdp)/dt;
+    float ydd = (yd-ydp)/dt;
+    
+    // now we can calculate the orientation at the new desired
+    // pose
+    ori_sent = clamp_angle( atan2f(yd, xd) + k*M_PI);
+
+    // Now we can calculate the feedforward terms
+    float tmp = powf(xd,2.0) + powf(yd,2.0);
+    vd = dir_sign*sqrtf(tmp);
+    wd = (ydd*xd - xdd*yd)/tmp;
+
+    return;
+}
+    
+
+void setup_controller(void)
+{
+    float k = 0.0;
+    // let's first interpret the string sent to the robot
+    t_sent = InterpNumber(&Command_String[2]);
+    x_sent = InterpNumber(&Command_String[5]);
+    y_sent = InterpNumber(&Command_String[8]);
+    run_fifo(t_sent, tvec);
+    run_fifo(x_sent, xvec);
+    run_fifo(y_sent, yvec);
+
+    // determine if we are currently going forward or backward:
+    if(tvec[0] < tvec[1])
+    {
+	k = 1.0;
+	dir_sign = -1.0;
+    }
+    else
+    {
+	k = 0.0;    
+	dir_sign = 1.0;
+    }
+    // set desired orientation and feedforward terms:
+    calculate_feedforward_values(k);
+
+    // now get the controller gains:
+    calculate_controller_gains();
+    
+    return;
+}
+
+float clamp_angle(float th)
+{
+    while(th <= 0)
+	th += 2.0*M_PI;
+    while(th > 2.0*M_PI)
+	th -= 2.0*M_PI;
+    return th;
+}
+    

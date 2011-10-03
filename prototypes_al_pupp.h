@@ -49,6 +49,16 @@ void BuildNumber(unsigned char *destination, float value, short int divisor);
 void MakeString(unsigned char *dest, char type, float fval, float sval, float tval, int div);
 void CreateAndSendArray(unsigned short id, unsigned char *DataString);
 void delay(void);
+
+// Functions for kinematic controller:
+void run_filo(const float new_val, float *array);
+void calculate_controller_gains(void);
+void calculate_feedforward_values(const float k);
+void setup_controller(void);
+float clamp_angle(float th);
+float find_min_angle(float a, float b);
+float sign(float x);
+
 #endif
 
 
