@@ -187,7 +187,7 @@ static short int timeout_flag = 0;
 static short int bad_data_counter = 0;
 
 //  Kinematic controller variables:
-static int dir_sign = 1;
+static float dir_sign = 1.0;
 static float tvec[3] = {0.0, 0.0, 0.0};
 static float xvec[3] = {0.0, 0.0, 0.0};
 static float yvec[3] = {0.0, 0.0, 0.0};
@@ -428,7 +428,7 @@ void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout()
 	    || (fabs(top_left_desired) >= 0.1) || (fabs(top_right_desired) >= 0.1))
 	{
 	    // Reset!
-	    Reset_Robot();
+	    /* Reset_Robot(); */
 	}
     }
     timeout_flag = 1;
@@ -568,9 +568,8 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 	    float w_robot = wd + k2*dir_sign*(cosf(theta)*(y_sent-y_pos) -
 					      sinf(theta)*(x_sent-x_pos)) + k1*dth;
 	    // now convert to wheel velocities
-	    
-	    /* left_desired = 2.0*(v_robot-w_robot*WIDTH)/DWHEEL; */
-	    /* right_desired = 2.0*(v_robot+w_robot*WIDTH)/DWHEEL; */
+	    left_desired = 2.0*(v_robot-w_robot*WIDTH)/DWHEEL;
+	    right_desired = 2.0*(v_robot+w_robot*WIDTH)/DWHEEL;
 	}
 	break;
     }
@@ -1259,8 +1258,8 @@ void PoseUpdate(void)
     	MakeString(buffer,'w',x_pos,y_pos,theta,4);
     	// Add checksum and send to master node:
     	CreateAndSendArray(0, buffer);
-	ClearEventWDT();
-    	EnableWDT();
+	/* ClearEventWDT(); */
+    	/* EnableWDT(); */
 	break;
 
     case 'e':
@@ -1271,13 +1270,12 @@ void PoseUpdate(void)
     	MakeString(buffer,'e',left_speed,right_speed,top_left_speed,3);
     	// Add checksum and send to master node:
     	CreateAndSendArray(0, buffer);
-    	ClearEventWDT();
-    	EnableWDT();
+    	/* ClearEventWDT(); */
+    	/* EnableWDT(); */
 	break;
 
     case 'k':
 	// we are going to run the kinematic controller:
-	exec_state = 5;
 	setup_controller();
 	pose_flag = 0;
 	break;
@@ -1548,6 +1546,7 @@ void calculate_feedforward_values(const float k)
 
 void setup_controller(void)
 {
+    static int data_count = 0;
     float k = 0.0;
     // let's first interpret the string sent to the robot
     t_sent = InterpNumber(&Command_String[2]);
@@ -1560,20 +1559,45 @@ void setup_controller(void)
     // determine if we are currently going forward or backward:
     if(tvec[0] < tvec[1])
     {
-	k = 1.0;
-	dir_sign = -1.0;
+	// Backwards
+	if (dir_sign != -1.0)
+	{
+	    k = 1.0;
+	    dir_sign = -1.0;
+	    data_count = 0;
+	    exec_state = 0;
+	}
     }
     else
     {
-	k = 0.0;    
-	dir_sign = 1.0;
+	// Forwards
+	if (dir_sign != 1.0)
+	{
+	    k = 0.0;    
+	    dir_sign = 1.0;
+	    data_count = 0;
+	    exec_state = 0;
+	}
     }
+
+    // Should we set the exec_state to 5 yet? i.e. do we have enough
+    // data to set up the controller?
+    if (exec_state != 5)
+    {
+	if (data_count > 2)
+	{
+	    exec_state = 5;
+	    data_count = 0;
+	}
+    }
+    
     // set desired orientation and feedforward terms:
     calculate_feedforward_values(k);
 
     // now get the controller gains:
     calculate_controller_gains();
     
+    data_count++;
     return;
 }
 

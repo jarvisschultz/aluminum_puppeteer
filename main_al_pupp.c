@@ -152,9 +152,9 @@ int main()
     // Initialize the Encoders:
     InitEncoder();
     // Initialize Watchdog Timer
-    ClearEventWDT();
-    DisableWDT();
-    EnableWDT();
+    /* ClearEventWDT(); */
+    /* DisableWDT(); */
+    /* EnableWDT(); */
 
     while(1)
     {
@@ -166,7 +166,7 @@ int main()
 
 	// To ensure that the PIC code is not stuck somehow, we
 	// use a watchdog timer. Let's reset it here:
-	ClearWDT();
+	/* ClearWDT(); */
     }
     CloseOC5();
     CloseOC2();
