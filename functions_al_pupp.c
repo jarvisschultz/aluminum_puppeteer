@@ -428,7 +428,7 @@ void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout()
 	    || (fabs(top_left_desired) >= 0.1) || (fabs(top_right_desired) >= 0.1))
 	{
 	    // Reset!
-	    /* Reset_Robot(); */
+	    Reset_Robot();
 	}
     }
     timeout_flag = 1;
@@ -1258,8 +1258,8 @@ void PoseUpdate(void)
     	MakeString(buffer,'w',x_pos,y_pos,theta,4);
     	// Add checksum and send to master node:
     	CreateAndSendArray(0, buffer);
-	/* ClearEventWDT(); */
-    	/* EnableWDT(); */
+	ClearEventWDT();
+    	EnableWDT();
 	break;
 
     case 'e':
@@ -1270,14 +1270,17 @@ void PoseUpdate(void)
     	MakeString(buffer,'e',left_speed,right_speed,top_left_speed,3);
     	// Add checksum and send to master node:
     	CreateAndSendArray(0, buffer);
-    	/* ClearEventWDT(); */
-    	/* EnableWDT(); */
+    	ClearEventWDT();
+    	EnableWDT();
 	break;
 
     case 'k':
 	// we are going to run the kinematic controller:
+	DisableWDT();
 	setup_controller();
 	pose_flag = 0;
+	ClearEventWDT();
+	EnableWDT();
 	break;
     }
 	
@@ -1502,7 +1505,7 @@ void delay(void)
 void run_fifo(const float new_val, float *array)
 {
     int i = 0;
-    for(i=sizeof(array)-1; i>0; i--)
+    for(i=2; i>0; i--)
 	array[i] = array[i-1];
     *array = new_val;
     return;
@@ -1519,17 +1522,28 @@ void calculate_controller_gains(void)
     return;
 }
 
-void calculate_feedforward_values(const float k)
+int calculate_feedforward_values(const float k)
 {
     // let's calculate the velocities and accelerations:
-    float dt = tvec[0]-tvec[1];
-    float dt2 = tvec[1]-tvec[2]; 
-    float xd = (xvec[0]-xvec[1])/dt;
-    float yd = (yvec[0]-yvec[1])/dt;
-    float xdp = (xvec[1]-xvec[2])/dt2;
-    float ydp = (yvec[1]-yvec[2])/dt2;
-    float xdd = (xd-xdp)/dt;
-    float ydd = (yd-ydp)/dt;
+    float dt2 = tvec[0]-tvec[1];
+    float dt = tvec[1]-tvec[2];
+    if ( fabs(dt)<0.00001 || fabs(dt2)<=0.00001 )
+    {
+        vd = 0;
+        wd = 0;
+	return 1;
+    }
+
+    t_sent = tvec[2];
+    x_sent = xvec[2];
+    y_sent = yvec[2];
+	
+    float xd = (xvec[1]-xvec[2])/dt;
+    float yd = (yvec[1]-yvec[2])/dt;
+    float xdp = (xvec[0]-xvec[1])/dt2;
+    float ydp = (yvec[0]-yvec[1])/dt2;
+    float xdd = (xdp-xd)/dt;
+    float ydd = (ydp-yd)/dt;
     
     // now we can calculate the orientation at the new desired
     // pose
@@ -1538,9 +1552,13 @@ void calculate_feedforward_values(const float k)
     // Now we can calculate the feedforward terms
     float tmp = powf(xd,2.0) + powf(yd,2.0);
     vd = dir_sign*sqrtf(tmp);
-    wd = (ydd*xd - xdd*yd)/tmp;
+    if (tmp < 0.00001)
+        wd = 0;
+    else
+        wd = (ydd*xd - xdd*yd)/tmp;
+    
 
-    return;
+    return 0;
 }
     
 
@@ -1548,14 +1566,15 @@ void setup_controller(void)
 {
     static int data_count = 0;
     float k = 0.0;
+    float tmp = 0.0;
     // let's first interpret the string sent to the robot
-    t_sent = InterpNumber(&Command_String[2]);
-    x_sent = InterpNumber(&Command_String[5]);
-    y_sent = InterpNumber(&Command_String[8]);
-    run_fifo(t_sent, tvec);
-    run_fifo(x_sent, xvec);
-    run_fifo(y_sent, yvec);
-
+    tmp = InterpNumber(&Command_String[2]);
+    run_fifo(tmp, tvec);
+    tmp = InterpNumber(&Command_String[5]);
+    run_fifo(tmp, xvec);
+    tmp = InterpNumber(&Command_String[8]);
+    run_fifo(tmp, yvec);
+    
     // determine if we are currently going forward or backward:
     if(tvec[0] < tvec[1])
     {
@@ -1584,7 +1603,7 @@ void setup_controller(void)
     // data to set up the controller?
     if (exec_state != 5)
     {
-	if (data_count > 2)
+	if (data_count >= 2)
 	{
 	    exec_state = 5;
 	    data_count = 0;
@@ -1592,11 +1611,16 @@ void setup_controller(void)
     }
     
     // set desired orientation and feedforward terms:
-    calculate_feedforward_values(k);
+    int bad_flag = calculate_feedforward_values(k);
+    if(bad_flag)
+    {
+        k1 = 5;
+        k2 = 5;
+    }
+    else
+        // now get the controller gains:
+        calculate_controller_gains();
 
-    // now get the controller gains:
-    calculate_controller_gains();
-    
     data_count++;
     return;
 }
@@ -1609,4 +1633,3 @@ float clamp_angle(float th)
 	th -= 2.0*M_PI;
     return th;
 }
-    
