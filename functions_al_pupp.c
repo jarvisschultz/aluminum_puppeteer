@@ -71,7 +71,7 @@ controller for trajectory following.
 #define PACKET_SIZE     12    
 #define SMALL_PACKET_SIZE    3 
 #define frequency  1500	       // Frequency we check kinematics at
-#define controller_freq  50    // Frequency to run kinematic controller at
+#define controller_freq  30    // Frequency to run kinematic controller at
 #define GEARRATIO  (19.0*(42.0/46.0))    // The gear ratio of the drivetrain
 #define TOPGEARRATIO (19.0*(10.0/14.0))  // Winch gear ratio
 #define CPR  100.0	               // counts per revolution of an encoder
@@ -196,13 +196,13 @@ static float k2 = 0.0;
 static float t_sent = 0.0;
 static float vd = 0.0;
 static float wd = 0.0;
+static int controller_flag = 0;
 
 /** Interrupt Handler Functions:**************************************************************************************************/
 // UART 2 interrupt handler
 // it is set at priority level 2
 void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 {
-    mLED_3_On();
     unsigned char temp;
     // Is this from receiving data?
     if(mU2RXGetIntFlag())
@@ -315,7 +315,6 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
     {
 	mU2TXClearIntFlag();
     }
-    mLED_3_Off();
 }
 
 // This is the ISR that gets called when we detect a rising or falling edge on CHANNEL_A_R
@@ -561,16 +560,7 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     case 5:
 	// this means we are running the kinematic controller
 	if (call_count%num == 0)
-	{
-	    float dth = find_min_angle(ori_sent, theta);
-	    float v_robot = vd*cosf(dth) + k1*(cosf(theta)*(x_sent-x_pos) +
-					       sinf(theta)*(y_sent-y_pos));
-	    float w_robot = wd + k2*dir_sign*(cosf(theta)*(y_sent-y_pos) -
-					      sinf(theta)*(x_sent-x_pos)) + k1*dth;
-	    // now convert to wheel velocities
-	    left_desired = 2.0*(v_robot-w_robot*WIDTH)/DWHEEL;
-	    right_desired = 2.0*(v_robot+w_robot*WIDTH)/DWHEEL;
-	}
+	    controller_flag = 1;
 	break;
     }
     call_count++;
@@ -1299,6 +1289,9 @@ void RuntimeOperation(void)
 	
     // If we are currently controlling pose, lets call that function
     if(pose_flag == 1) SetPose(x_sent,y_sent,ori_sent);
+
+    // Run kinematic controller?
+    if(controller_flag == 1)  run_controller();
 }
 
 // This function is for determining the minium of two numbers:
@@ -1527,6 +1520,10 @@ int calculate_feedforward_values(const float k)
     // let's calculate the velocities and accelerations:
     float dt2 = tvec[0]-tvec[1];
     float dt = tvec[1]-tvec[2];
+    t_sent = tvec[2];
+    x_sent = xvec[2];
+    y_sent = yvec[2];
+
     if ( fabs(dt)<0.00001 || fabs(dt2)<=0.00001 )
     {
         vd = 0;
@@ -1534,10 +1531,7 @@ int calculate_feedforward_values(const float k)
 	return 1;
     }
 
-    t_sent = tvec[2];
-    x_sent = xvec[2];
-    y_sent = yvec[2];
-	
+
     float xd = (xvec[1]-xvec[2])/dt;
     float yd = (yvec[1]-yvec[2])/dt;
     float xdp = (xvec[0]-xvec[1])/dt2;
@@ -1548,12 +1542,17 @@ int calculate_feedforward_values(const float k)
     // now we can calculate the orientation at the new desired
     // pose
     ori_sent = clamp_angle( atan2f(yd, xd) + k*M_PI);
+    if(isnan(ori_sent) != 0)
+	ori_sent = theta;
 
     // Now we can calculate the feedforward terms
     float tmp = powf(xd,2.0) + powf(yd,2.0);
     vd = dir_sign*sqrtf(tmp);
     if (tmp < 0.00001)
-        wd = 0;
+    {
+	wd = 0;
+	return 1;
+    }
     else
         wd = (ydd*xd - xdd*yd)/tmp;
     
@@ -1605,6 +1604,7 @@ void setup_controller(void)
     {
 	if (data_count >= 2)
 	{
+	    mLED_3_Toggle();
 	    exec_state = 5;
 	    data_count = 0;
 	}
@@ -1632,4 +1632,20 @@ float clamp_angle(float th)
     while(th > 2.0*M_PI)
 	th -= 2.0*M_PI;
     return th;
+}
+
+void run_controller(void)
+{
+    mLED_3_Toggle();
+    float dth = find_min_angle(ori_sent, theta);
+    float v_robot = vd*cosf(dth) + k1*(cosf(theta)*(x_sent-x_pos) +
+				       sinf(theta)*(y_sent-y_pos));
+    float w_robot = wd + k2*dir_sign*(cosf(theta)*(y_sent-y_pos) -
+				      sinf(theta)*(x_sent-x_pos)) + k1*dth;
+    // now convert to wheel velocities
+    left_desired = 2.0*(v_robot-w_robot*WIDTH)/DWHEEL;
+    right_desired = 2.0*(v_robot+w_robot*WIDTH)/DWHEEL;
+
+    controller_flag = 0;
+    return;
 }

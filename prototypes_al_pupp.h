@@ -58,6 +58,7 @@ void setup_controller(void);
 float clamp_angle(float th);
 float find_min_angle(float a, float b);
 float sign(float x);
+void run_controller(void);
 
 #endif
 
