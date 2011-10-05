@@ -10,55 +10,76 @@ This file simply contains the function prototypes/ declarations
 #define _MOTORS
 #include <plib.h>
 #include <p32xxxx.h>
-void SetStepsLeft(int set_steps);   	// This function manually changes the number stored in the number of steps variable for the left motor
-void SetSpeedLeft(float motor_speed, float dt); 	// This function sets the left motor speed at the desired speed and begins driving the motor
-float GetSpeedLeft(void);				// This function simply returns the current value of the speed set for the left motor in (steps/sec)
-int GetStepsLeft(void);		 	                // This function returns the current left motor position in steps
+/******************************************************************************
+ * FUNCTIONS FOR MOTOR CONTROLS ***********************************************
+ * ***************************************************************************/
+// LEFT
+void SetStepsLeft(int set_steps);   	
+void SetSpeedLeft(float motor_speed, float dt);
+float GetSpeedLeft(void);			
+int GetStepsLeft(void);		 	        
+// RIGHT
+void SetStepsRight(int set_steps);
+void SetSpeedRight(float motor_speed, float dt);
+float GetSpeedRight(void);			
+int GetStepsRight(void);		 	
+// TOP LEFT
+void SetStepsTopLeft(int set_steps);     
+void SetSpeedTopLeft(float motor_speed, float dt); 
+float GetSpeedTopLeft(void);				
+int GetStepsTopLeft(void);		 		
+// TOP RIGHT
+void SetStepsTopRight(int set_steps);        
+void SetSpeedTopRight(float motor_speed, float dt); 	
+float GetSpeedTopRight(void);				
+int GetStepsTopRight(void);		 		
 
-void SetStepsRight(int set_steps);   	// This function manually changes the number stored in the number of steps variable for the right motor
-void SetSpeedRight(float motor_speed, float dt); 	// This function sets the right motor speed at the desired speed and begins driving the motor
-float GetSpeedRight(void);				// This function simply returns the current value of the speed set for the left motor in (steps/sec)
-int GetStepsRight(void);		 		// This function returns the current right motor position in steps
+/******************************************************************************
+ * FUNCTIONS FOR INITIALIZATIONS **********************************************
+ * ***************************************************************************/
+void InitUART2(int pbClk);				
+void InitTimer2(void);					
+void InitTimer4(void);					
+void InitMotorPWM(void);				
+void InitEncoder(void);					
 
-void SetStepsTopLeft(int set_steps);        // This function manually changes the number stored in the number of steps variable for the right motor
-void SetSpeedTopLeft(float motor_speed, float dt); 	// This function sets the right motor speed at the desired speed and begins driving the motor
-float GetSpeedTopLeft(void);				// This function simply returns the current value of the speed set for the left motor in (steps/sec)
-int GetStepsTopLeft(void);		 		// This function returns the current right motor position in steps
+/******************************************************************************
+ * FUNCTIONS FOR COMMUNICATION ************************************************
+ * ***************************************************************************/
+void interp_command(void);				
+void SendDataBuffer(const char *buffer, UINT32 size);	
+float interp_number(const unsigned char *data);	 	
+int data_checker(unsigned char* buff);
+void build_number(unsigned char *destination, float value, short int divisor);
+void make_string(unsigned char *dest, char type,
+		 float fval, float sval, float tval, int div);
+void create_send_array(unsigned short id, unsigned char *DataString);
 
-void SetStepsTopRight(int set_steps);        // This function manually changes the number stored in the number of steps variable for the right motor
-void SetSpeedTopRight(float motor_speed, float dt); 	// This function sets the right motor speed at the desired speed and begins driving the motor
-float GetSpeedTopRight(void);				// This function simply returns the current value of the speed set for the left motor in (steps/sec)
-int GetStepsTopRight(void);		 		// This function returns the current right motor position in steps
-
-void InitUART2(int pbClk);				// Function for initializing UART2
-void SetPose(float xdest, float ydest, float thdest);	// This function contains all of the logic for the pose control mode of operation
-void PoseUpdate(void);					// Once we have received a full set of instructions, this function is called to implement them.
-void InitTimer2(void);					// This function initializes timer 2
-void InitTimer4(void);					// This function initializes timer 4
-void RuntimeOperation(void);    			// This function actually executes everything.  It needs to be called repeatedly in the main loop.
-float find_min(float a, float b);			        // This function returns the minimum value of two floats passed into it.
-void InitMotorPWM(void);				// This initializes the pins that are used for PWM control of the DC motors
-void InitEncoder(void);					// This function initializes the IC pins that are being used for reading encoder pulses
-void SendDataBuffer(const char *buffer, UINT32 size);	// This is a function that is used for sending data over UART2
-
-float InterpNumber(const unsigned char *data);		// This function takes in a pointer to a character array, it then interprets the first three
-							// characters found at that location, and returns a float.
-int Data_Checker(unsigned char* buff);			// For checking the validity of sent commands
-void Reset_Robot(void);
-void BuildNumber(unsigned char *destination, float value, short int divisor);
-void MakeString(unsigned char *dest, char type, float fval, float sval, float tval, int div);
-void CreateAndSendArray(unsigned short id, unsigned char *DataString);
-void delay(void);
-
+/******************************************************************************
+ * FUNCTIONS FOR ROBOT CONTROL ************************************************
+ * ***************************************************************************/
+// GENERAL
+void SetPose(float xdest, float ydest, float thdest);
+void RuntimeOperation(void);    			
+void reset_robot(void);
 // Functions for kinematic controller:
 void run_filo(const double new_val, double *array);
 void calculate_controller_gains(void);
 int calculate_feedforward_values(const float k);
 void setup_controller(void);
+void run_controller(void);
+void setup_winch_controller(void);
+void run_winch_controller(void);
+
+/******************************************************************************
+ * MISCELLANEOUS FUNCTIONS ****************************************************
+ * ***************************************************************************/
+float find_min(float a, float b);			
+void delay(void);
 float clamp_angle(float th);
 float find_min_angle(float a, float b);
 float sign(float x);
-void run_controller(void);
+
 
 #endif
 

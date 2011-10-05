@@ -67,11 +67,12 @@ controller for trajectory following.
 #define CHANNEL_B_TR	PORTDbits.RD7
 #define MAX_RESOLUTION	3999  // Proportional to period of PWM (represents the
 			      // maximum number that we can use for PWM function)
-#define ERROR_DEADBAND	0.05  
-#define PACKET_SIZE     12    
-#define SMALL_PACKET_SIZE    3 
+#define ERROR_DEADBAND	0.05
+#define LARGE_PACKET_SIZE	18
+#define PACKET_SIZE		12    
+#define SMALL_PACKET_SIZE	3 
 #define frequency  1500	       // Frequency we check kinematics at
-#define controller_freq  100    // Frequency to run kinematic controller at
+#define controller_freq  300    // Frequency to run kinematic controller at
 #define GEARRATIO  (19.0*(42.0/46.0))    // The gear ratio of the drivetrain
 #define TOPGEARRATIO (19.0*(10.0/14.0))  // Winch gear ratio
 #define CPR  100.0	               // counts per revolution of an encoder
@@ -101,8 +102,8 @@ static long long left_steps = 0;
 static long long right_steps = 0;	
 static long long top_left_steps = 0;	
 static long long top_right_steps = 0;
-// Old encoder counts for determining velocities:
 
+// Old encoder counts for determining velocities:
 static long long left_steps_last = 0;	
 static long long right_steps_last = 0;  
 static long long top_left_steps_last = 0;
@@ -112,9 +113,8 @@ static long long top_right_steps_last = 0;
 static float x_pos = 0.0;		
 static float y_pos = 0.0;		
 static float theta = 0.0;  // w.r.t positive x-axis (clamped between 0 and 2pi)
-static float height_left = 0.0; // never negative; relative to the height set
-				// by string when it is all the way down.
-static float height_right = 0.0;
+static float height_left = 0.0; // increases as string length decreases i.e.
+static float height_right = 0.0; // up is positive
 
 // Robot constants (in meters):
 static float DPULLEY = 0.034924999999999998; 
@@ -124,8 +124,8 @@ static float DWHEEL = 0.07619999999999;
 static float speed = 10.0;	// default driving speed
 
 // Communication buffers and miscellaneous:
-static unsigned char RS232_In_Buffer[PACKET_SIZE] = "zzzzzzzzzzzz";
-static unsigned char Command_String[PACKET_SIZE] = "zzzzzzzzzzzz";
+static unsigned char RS232_In_Buffer[LARGE_PACKET_SIZE] = "zzzzzzzzzzzzzzzzzz";
+static unsigned char Command_String[LARGE_PACKET_SIZE] = "zzzzzzzzzzzzzzzzzz";
 static int i = 0;	        // position in RS232_In_Buffer
 static int data_flag = 0;  	
 static int pose_flag = 0;  	
@@ -137,8 +137,8 @@ static char BROADCAST = '9';
 static float x_sent = 0.0;
 static float y_sent = 0.0;
 static float ori_sent = 0.0;
-/* static float height_left_sent = 0.0;  */
-/* static float height_right_sent = 0.0; */
+static float height_left_sent = 0.0;
+static float height_right_sent = 0.0;
 
 // Miscellaneous pose control variables:
 static float first_angle = 0.0; 	// angle of the vector from the robots
@@ -162,22 +162,28 @@ static float ki = 50;		// Gain on the integral error term
 static float kd = 0.5;		// Gain on the derivative error term
 
 // Add a bunch of variables for communication safety:
-static unsigned char header_list[12]={'p','l','r','h','s','q','t','m','w','e','d','k'};
+static unsigned char header_list[]={'p','l','r','h','s','q','m','w',
+				    'e','d','k','t','n','b','a'};
 /******************************************************************************/
 // Note that the header characters mean the following:
-//	'p' = Drive to a desired pose
-//	'l' = Re-define the robot's position and orientation
+//	'p' = Drive to a desired pose (R)
+//	'l' = Re-define the robot's position and orientation (R)
 //	'r' = Stop driving, and re-set the global configuration to the robot's
-//		current pose
-//	'h' = Motor speed command
-//	's' = Change default speed for pose control
-//	'q' = Stop the robot, and reset movement_flag
-//	't' = Controls for the winch motors
-//	'm' = Start command; must receive this before driving can begin
-//	'w' = Current pose request
-//	'e' = Current motor speeds request
+//		current pose (R)
+//	'h' = Motor speed command (winches run at same speed) (R)
+//	's' = Change default speed for pose control (R)
+//	'q' = Stop the robot, and reset movement_flag (R)
+//	'm' = Start command; must receive this before driving can begin (R)
+//	'w' = Current pose request (S)
+//	'e' = Current motor speeds request (S)
 //	'd' = Translational and rotational velocity command
-//	'k' = Run kinematic controller for following trajectories
+//		(both winches the same)(R)
+//	'k' = Run kinematic controller for following trajectories (R)
+//	't' = Run trajectory kinematic controller and height controller (L)
+//	'n' = All motor speed commands (L)
+//	'b' = Reset current winch height estimates (R)
+//	'a' = Set values for all configuration variables (L)
+//	'i' = Translational and rotational velocity command (L)
 /******************************************************************************/
 static short int bad_data_total = 0;
 static short int bad_data = 0;
@@ -192,17 +198,22 @@ static double tvec[3] = {0.0, 0.0, 0.0};
 static double xvec[3] = {0.0, 0.0, 0.0};
 static double yvec[3] = {0.0, 0.0, 0.0};
 static double thvec[3] = {0.0, 0.0, 0.0};
+static double lftvec[3] = {0.0, 0.0, 0.0};
+static double rhtvec[3] = {0.0, 0.0, 0.0};
 static double k1 = 0.0;
 static double k2 = 0.0;
 static double t_sent = 0.0;
 static double vd = 0.0;
 static double wd = 0.0;
-static int controller_flag = 0;
-static int pause_controller_flag = 0;
+static unsigned int controller_flag = 0;
+static unsigned int pause_controller_flag = 0;
 static double dt = 0.0;
 static double dt2 = 0.0;
 static double running_dt = 0.0;
 static unsigned short waypoint_index = 0;
+static unsigned int winch_controller_flag = 0;
+static double vlff[3] = {0.0, 0.0, 0.0};
+static double vrff[3] = {0.0, 0.0, 0.0};
 
 /** Interrupt Handler Functions:**************************************************************************************************/
 // UART 2 interrupt handler
@@ -236,6 +247,9 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 		    // If a request, it is a short packet!
 		    if (temp == 'w' || temp == 'e')
 			DATA_LENGTH = SMALL_PACKET_SIZE;
+		    // Is this a long packet?
+		    if (temp == 't' || temp == 'n' || temp == 'a')
+			DATA_LENGTH = LARGE_PACKET_SIZE;
 		    break;
 		}
 	    }
@@ -288,7 +302,7 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 
 		    short int new_pos = 0;
 		    // Let's check to see if there is a new header in the buffer
-		    new_pos = Data_Checker(RS232_In_Buffer);
+		    new_pos = data_checker(RS232_In_Buffer);
 
 		    if (new_pos != 0) i = new_pos;
 		    else
@@ -307,12 +321,12 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 	// If we have too much bad data, let's quit!
 	if (bad_data_total >= MAX_BAD_DATA_TOTAL || bad_data >= MAX_BAD_DATA)
 	{
-	    Reset_Robot();
+	    reset_robot();
 	}
 
 	if (bad_data_counter >= MAX_BAD_COUNTER)
 	{
-	    Reset_Robot();
+	    reset_robot();
 	}
     }
 
@@ -433,7 +447,7 @@ void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout()
 	    || (fabs(top_left_desired) >= 0.1) || (fabs(top_right_desired) >= 0.1))
 	{
 	    // Reset!
-	    Reset_Robot();
+	    reset_robot();
 	}
     }
     timeout_flag = 1;
@@ -1120,7 +1134,7 @@ void SetPose(float xdest,float ydest,float thdest)
 
 // This is the function that is called after a complete instruction has been received.  It decodes that instruction
 // and then sets important global variables to the correct values.
-void PoseUpdate(void)
+void interp_command(void)
 {
     // The first thing that we do is clear the flags for receiving header bits and for receiving new instructions:
     data_flag = 0;
@@ -1171,9 +1185,9 @@ void PoseUpdate(void)
     case 'p':
 	exec_state = 2;
 
-	x_sent = InterpNumber(&Command_String[2]);
-	y_sent = InterpNumber(&Command_String[5]);
-	ori_sent = InterpNumber(&Command_String[8]);
+	x_sent = interp_number(&Command_String[2]);
+	y_sent = interp_number(&Command_String[5]);
+	ori_sent = interp_number(&Command_String[8]);
 		
 	// Let's set pose_flag so that we know we need to call SetPose()
 	pose_flag = 1;
@@ -1182,9 +1196,9 @@ void PoseUpdate(void)
     case 'l':
 	// If the header byte is an 'l', we have received updated information about the 
 	// robot's current location.
-	x_pos = InterpNumber(&Command_String[2]);
-	y_pos = InterpNumber(&Command_String[5]);
-	theta = InterpNumber(&Command_String[8]);	
+	x_pos = interp_number(&Command_String[2]);
+	y_pos = interp_number(&Command_String[5]);
+	theta = interp_number(&Command_String[8]);	
 	break;
 
     case 'r':
@@ -1207,9 +1221,9 @@ void PoseUpdate(void)
 	// If we receive an h as the header char, then that means that we will
 	// simply control the motor speeds
 	exec_state = 1;
-	left_desired = InterpNumber(&Command_String[2]);
-	right_desired = InterpNumber(&Command_String[5]);	
-	top_left_desired = InterpNumber(&Command_String[8]);
+	left_desired = interp_number(&Command_String[2]);
+	right_desired = interp_number(&Command_String[5]);	
+	top_left_desired = interp_number(&Command_String[8]);
 	top_right_desired = top_left_desired;
 	
 	// We just received commands for explicitly controlling the wheel speeds,
@@ -1219,9 +1233,9 @@ void PoseUpdate(void)
 
     case 'd':
 	exec_state = 1;
-	float v_robot = InterpNumber(&Command_String[2]);
-	float w_robot = InterpNumber(&Command_String[5]);
-	float v_winch = InterpNumber(&Command_String[8]);
+	float v_robot = interp_number(&Command_String[2]);
+	float w_robot = interp_number(&Command_String[5]);
+	float v_winch = interp_number(&Command_String[8]);
 
 	//  Now we need to convert these into angular velocities for the motors:
 	left_desired = 2.0*(v_robot-w_robot*WIDTH)/DWHEEL;
@@ -1233,7 +1247,7 @@ void PoseUpdate(void)
 	break;
 
     case 's':
-	speed = InterpNumber(&Command_String[2]);
+	speed = interp_number(&Command_String[2]);
 	while(BusyUART2());
 	putsUART2("Changed Default Speed\r\n");
 	break;
@@ -1252,9 +1266,9 @@ void PoseUpdate(void)
     	// send it out:
     	DisableWDT();
     	// Make string to send out:
-    	MakeString(buffer,'w',x_pos,y_pos,theta,4);
+    	make_string(buffer,'w',x_pos,y_pos,theta,4);
     	// Add checksum and send to master node:
-    	CreateAndSendArray(0, buffer);
+    	create_send_array(0, buffer);
 	ClearEventWDT();
     	EnableWDT();
 	break;
@@ -1264,9 +1278,9 @@ void PoseUpdate(void)
     	// so let's send it out:
     	DisableWDT();
     	// Make string to send out:
-    	MakeString(buffer,'e',left_speed,right_speed,top_left_speed,3);
+    	make_string(buffer,'e',left_speed,right_speed,top_left_speed,3);
     	// Add checksum and send to master node:
-    	CreateAndSendArray(0, buffer);
+    	create_send_array(0, buffer);
     	ClearEventWDT();
     	EnableWDT();
 	break;
@@ -1276,8 +1290,62 @@ void PoseUpdate(void)
 	DisableWDT();
 	setup_controller();
 	pose_flag = 0;
+	winch_controller_flag = 0;
 	ClearEventWDT();
 	EnableWDT();
+	break;
+
+    case 't':
+	// Kinematic controller for trajectory and winches
+	DisableWDT();
+	setup_controller();
+	setup_winch_controller();
+	pose_flag = 0;
+	winch_controller_flag = 1;
+	ClearEventWDT();
+	EnableWDT();
+	break;
+
+    case 'n':
+	// control all motor speeds
+	exec_state = 1;
+	left_desired = interp_number(&Command_String[2]);
+	right_desired = interp_number(&Command_String[5]);	
+	top_left_desired = interp_number(&Command_String[8]);
+	top_right_desired = interp_number(&Command_String[11]);
+	pose_flag = 0;
+	break;
+
+    case 'a':
+	// set all configuration variables to a specified value
+	x_pos = interp_number(&Command_String[2]);
+	y_pos = interp_number(&Command_String[5]);
+	theta = interp_number(&Command_String[8]);
+	height_left = interp_number(&Command_String[11]);
+	height_right = interp_number(&Command_String[14]);
+	break;
+
+    case 'b':
+	// just reset the height configuration variables to a
+	// specified value
+	height_left = interp_number(&Command_String[2]);
+	height_right = interp_number(&Command_String[5]);
+	break;
+
+    case 'i':
+	exec_state = 1;
+	float v_robot_1 = interp_number(&Command_String[2]);
+	float w_robot_1 = interp_number(&Command_String[5]);
+	float v_winch_1 = interp_number(&Command_String[8]);
+	float v_winch_2 = interp_number(&Command_String[11]);
+
+	//  Now we need to convert these into angular velocities for the motors:
+	left_desired = 2.0*(v_robot_1-w_robot_1*WIDTH)/DWHEEL;
+	right_desired = 2.0*(v_robot_1+w_robot_1*WIDTH)/DWHEEL;
+	top_left_desired = 2.0*v_winch_1/DPULLEY;
+	top_right_desired = 2.0*v_winch_2/DPULLEY;
+
+	pose_flag = 0;
 	break;
     }
 	
@@ -1292,7 +1360,7 @@ void RuntimeOperation(void)
     // set of data (because it began with a header bit and was full
     // length chars and the checksum was correct), let's call our
     // functions that interpret and execute the received data
-    if(data_flag == 1) PoseUpdate();
+    if(data_flag == 1) interp_command();
 	
     // If we are currently controlling pose, lets call that function
     if(pose_flag == 1) SetPose(x_sent,y_sent,ori_sent);
@@ -1357,7 +1425,7 @@ void SendDataBuffer(const char *buffer, UINT32 size)
 /* significant bits of these chars concantenated form a divisor and
  * the rest are stuck together to form a 21 bit signed integer.  The
  * divisor then converts this to a float. */
-float InterpNumber(const unsigned char *data)
+float interp_number(const unsigned char *data)
 {
     unsigned int num1 = 0;
     int num2 = 0;
@@ -1378,7 +1446,7 @@ float InterpNumber(const unsigned char *data)
     return numf;
 }
 
-int Data_Checker(unsigned char* buff)
+int data_checker(unsigned char* buff)
 {
     short int j = 0;
     short int k = 0;
@@ -1417,7 +1485,7 @@ int Data_Checker(unsigned char* buff)
     return i;
 }
 
-void Reset_Robot(void)
+void reset_robot(void)
 {
     // First, let's disable all interrupts:
     INTDisableInterrupts();
@@ -1437,7 +1505,7 @@ void Reset_Robot(void)
     asm("nop");
 }
 
-void BuildNumber(unsigned char *destination, float value, short int divisor)
+void build_number(unsigned char *destination, float value, short int divisor)
 {
     int valint = 0;
     int i = 0;
@@ -1461,16 +1529,16 @@ void BuildNumber(unsigned char *destination, float value, short int divisor)
     return;
 }
 
-void MakeString(unsigned char *dest, char type, float fval,
+void make_string(unsigned char *dest, char type, float fval,
 		float sval, float tval, int div)
 {
     *dest = type;
-    BuildNumber((dest+1), fval, div);
-    BuildNumber((dest+4), sval, div);
-    BuildNumber((dest+7), tval, div);
+    build_number((dest+1), fval, div);
+    build_number((dest+4), sval, div);
+    build_number((dest+7), tval, div);
 }
 
-void CreateAndSendArray(unsigned short id, unsigned char *DataString)
+void create_send_array(unsigned short id, unsigned char *DataString)
 {
     unsigned char packet [20];
     int i = 0;
@@ -1574,23 +1642,33 @@ int calculate_feedforward_values(const float k)
 	wd = alpha*wd+(1-alpha)*wd_last;
     }
     wd_last = wd;
-
-    if(!swUser)
-    {
-	/* double tmp1 = pow(xdd,2.0)+pow(ydd,2.0); */
-	printf("%f\t%f\n\r", vd, wd);
-	/* printf("%f\t%f\t%f\t%f\t\r\n",xd,xdd,yd,ydd); */
-    }
-    
-    /* vd = 0.25; */
-    /* wd = 0.50; */
-    /* thvec[2] = clamp_angle(M_PI/2.0+tvec[2]/2.0); */
-    /* thvec[1] = clamp_angle(M_PI/2.0+tvec[1]/2.0); */
-    /* thvec[0] = clamp_angle(M_PI/2.0+tvec[0]/2.0); */
         
     return 0;
 }
+
+void setup_winch_controller(void)
+{
+    // Pause controller while running this function
+    pause_controller_flag = 1;
+    double tmp = 0.0;
+    // read string
+    tmp = interp_number(&Command_String[11]);
+    run_fifo(tmp, lftvec);
+    tmp = interp_number(&Command_String[14]);
+    run_fifo(tmp, rhtvec);
+
+    // calculate feedforward velocities:
+    vlff[2] = vlff[1];
+    vlff[1] = (lftvec[0]-lftvec[1])/dt2;
+    vlff[0] = vlff[1];
     
+    vrff[2] = vrff[1];
+    vrff[1] = (rhtvec[0]-rhtvec[1])/dt2;
+    vrff[0] = vrff[1];
+
+    pause_controller_flag = 0;
+    return;
+}    
 
 void setup_controller(void)
 {
@@ -1601,11 +1679,11 @@ void setup_controller(void)
     float k = 0.0;
     double tmp = 0.0;
     // let's first interpret the string sent to the robot
-    tmp = InterpNumber(&Command_String[2]);
+    tmp = interp_number(&Command_String[2]);
     run_fifo(tmp, tvec);
-    tmp = InterpNumber(&Command_String[5]);
+    tmp = interp_number(&Command_String[5]);
     run_fifo(tmp, xvec);
-    tmp = InterpNumber(&Command_String[8]);
+    tmp = interp_number(&Command_String[8]);
     run_fifo(tmp, yvec);
     
     // determine if we are currently going forward or backward:
@@ -1696,6 +1774,52 @@ void run_controller(void)
     left_desired = 2.0*(v_robot-w_robot*WIDTH)/DWHEEL;
     right_desired = 2.0*(v_robot+w_robot*WIDTH)/DWHEEL;
 
+    // if necessary, run winch controller:
+    if (winch_controller_flag == 1)
+	run_winch_controller();
+    
     controller_flag = 0;
+    return;
+}
+
+void run_winch_controller(void)
+{
+    static double vl = 0.0, vr = 0.0;
+    /* static double hrefl = 0.0, hrefr = 0.0; */
+    /* static double k = 1.0; */
+    
+    height_left_sent = lftvec[waypoint_index];
+    height_right_sent = rhtvec[waypoint_index];
+
+    vl = vlff[waypoint_index];
+    vr = vrff[waypoint_index];
+
+    if ((vl >= 0 && height_left >= height_left_sent) ||
+	(vl <= 0 && height_left <= height_left_sent))
+	vl = 0;
+    if ((vr >= 0 && height_right >= height_right_sent) ||
+	(vr <= 0 && height_right <= height_right_sent))
+	vr = 0;       
+
+    /* if (waypoint_index != 0) */
+    /* { */
+    /* 	// we are heading to either the first or second pt in the */
+    /* 	// buffer */
+    /* 	hrefl = lftvec[waypoint_index]+vl*(running_dt-tvec[waypoint_index]); */
+    /* 	hrefr = rhtvec[waypoint_index]+vr*(running_dt-tvec[waypoint_index]); */
+    /* } */
+    /* else */
+    /* { */
+    /* 	hrefl = lftvec[0]; */
+    /* 	hrefr = rhtvec[0]; */
+    /* } */
+
+    /* vl = k*(hrefl-height_left); */
+    /* vr = k*(hrefr-height_right); */
+
+    // convert to angular velocities:    
+    top_left_desired = 2.0*vl/DPULLEY;
+    top_right_desired = 2.0*vr/DPULLEY;
+
     return;
 }
