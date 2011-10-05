@@ -51,7 +51,7 @@ void CreateAndSendArray(unsigned short id, unsigned char *DataString);
 void delay(void);
 
 // Functions for kinematic controller:
-void run_filo(const float new_val, float *array);
+void run_filo(const double new_val, double *array);
 void calculate_controller_gains(void);
 int calculate_feedforward_values(const float k);
 void setup_controller(void);

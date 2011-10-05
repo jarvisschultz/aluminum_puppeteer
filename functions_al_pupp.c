@@ -71,7 +71,7 @@ controller for trajectory following.
 #define PACKET_SIZE     12    
 #define SMALL_PACKET_SIZE    3 
 #define frequency  1500	       // Frequency we check kinematics at
-#define controller_freq  30    // Frequency to run kinematic controller at
+#define controller_freq  100    // Frequency to run kinematic controller at
 #define GEARRATIO  (19.0*(42.0/46.0))    // The gear ratio of the drivetrain
 #define TOPGEARRATIO (19.0*(10.0/14.0))  // Winch gear ratio
 #define CPR  100.0	               // counts per revolution of an encoder
@@ -187,16 +187,22 @@ static short int timeout_flag = 0;
 static short int bad_data_counter = 0;
 
 //  Kinematic controller variables:
-static float dir_sign = 1.0;
-static float tvec[3] = {0.0, 0.0, 0.0};
-static float xvec[3] = {0.0, 0.0, 0.0};
-static float yvec[3] = {0.0, 0.0, 0.0};
-static float k1 = 0.0;
-static float k2 = 0.0;
-static float t_sent = 0.0;
-static float vd = 0.0;
-static float wd = 0.0;
+static double dir_sign = 1.0;
+static double tvec[3] = {0.0, 0.0, 0.0};
+static double xvec[3] = {0.0, 0.0, 0.0};
+static double yvec[3] = {0.0, 0.0, 0.0};
+static double thvec[3] = {0.0, 0.0, 0.0};
+static double k1 = 0.0;
+static double k2 = 0.0;
+static double t_sent = 0.0;
+static double vd = 0.0;
+static double wd = 0.0;
 static int controller_flag = 0;
+static int pause_controller_flag = 0;
+static double dt = 0.0;
+static double dt2 = 0.0;
+static double running_dt = 0.0;
+static unsigned short waypoint_index = 0;
 
 /** Interrupt Handler Functions:**************************************************************************************************/
 // UART 2 interrupt handler
@@ -558,8 +564,9 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 	}
 	break;
     case 5:
+	running_dt += ticktime*(((float) ReadTimer2())+1.0)+dtbase;
 	// this means we are running the kinematic controller
-	if (call_count%num == 0)
+	if (call_count%num == 0 && pause_controller_flag != 1)
 	    controller_flag = 1;
 	break;
     }
@@ -1495,7 +1502,7 @@ void delay(void)
     while(num_calls) num_calls--;
 }
 
-void run_fifo(const float new_val, float *array)
+void run_fifo(const double new_val, double *array)
 {
     int i = 0;
     for(i=2; i>0; i--)
@@ -1517,12 +1524,16 @@ void calculate_controller_gains(void)
 
 int calculate_feedforward_values(const float k)
 {
+    static double alpha = 0.3;
+    static double wd_last = 0.0;
+    // reset the running time because we got a new pt:
+    running_dt = 0.0;
+    // reset the index marking which point in the buffer we are
+    // concerned with
+    waypoint_index = 2;
     // let's calculate the velocities and accelerations:
-    float dt2 = tvec[0]-tvec[1];
-    float dt = tvec[1]-tvec[2];
-    t_sent = tvec[2];
-    x_sent = xvec[2];
-    y_sent = yvec[2];
+    dt2 = tvec[0]-tvec[1];
+    dt = tvec[1]-tvec[2];
 
     if ( fabs(dt)<0.00001 || fabs(dt2)<=0.00001 )
     {
@@ -1531,41 +1542,64 @@ int calculate_feedforward_values(const float k)
 	return 1;
     }
 
+    double xd = (xvec[1]-xvec[2])/dt;
+    double yd = (yvec[1]-yvec[2])/dt;
+    double xdp = (xvec[0]-xvec[1])/dt2;
+    double ydp = (yvec[0]-yvec[1])/dt2;
+    double xdd = (xdp-xd)/dt;
+    double ydd = (ydp-yd)/dt;
 
-    float xd = (xvec[1]-xvec[2])/dt;
-    float yd = (yvec[1]-yvec[2])/dt;
-    float xdp = (xvec[0]-xvec[1])/dt2;
-    float ydp = (yvec[0]-yvec[1])/dt2;
-    float xdd = (xdp-xd)/dt;
-    float ydd = (ydp-yd)/dt;
-    
     // now we can calculate the orientation at the new desired
     // pose
-    ori_sent = clamp_angle( atan2f(yd, xd) + k*M_PI);
-    if(isnan(ori_sent) != 0)
-	ori_sent = theta;
+    thvec[2] = clamp_angle( atan2f(yd, xd) + k*M_PI);
+    if(isnan(thvec[2]) != 0)
+    	thvec[2] = theta;
+    thvec[1] = clamp_angle( atan2f(ydp, xdp) + k*M_PI);
+    if(isnan(thvec[1]) != 0)
+    	thvec[1] = theta;
+    thvec[0] = thvec[1];
 
     // Now we can calculate the feedforward terms
-    float tmp = powf(xd,2.0) + powf(yd,2.0);
-    vd = dir_sign*sqrtf(tmp);
+    double tmp = pow(xd,2.0) + pow(yd,2.0);
+    vd = dir_sign*sqrt(tmp);
     if (tmp < 0.00001)
     {
-	wd = 0;
-	return 1;
+	mLED_3_Toggle();
+    	wd = 0;
+    	return 1;
     }
     else
+    {
         wd = (ydd*xd - xdd*yd)/tmp;
-    
+	wd = alpha*wd+(1-alpha)*wd_last;
+    }
+    wd_last = wd;
 
+    if(!swUser)
+    {
+	/* double tmp1 = pow(xdd,2.0)+pow(ydd,2.0); */
+	printf("%f\t%f\n\r", vd, wd);
+	/* printf("%f\t%f\t%f\t%f\t\r\n",xd,xdd,yd,ydd); */
+    }
+    
+    /* vd = 0.25; */
+    /* wd = 0.50; */
+    /* thvec[2] = clamp_angle(M_PI/2.0+tvec[2]/2.0); */
+    /* thvec[1] = clamp_angle(M_PI/2.0+tvec[1]/2.0); */
+    /* thvec[0] = clamp_angle(M_PI/2.0+tvec[0]/2.0); */
+        
     return 0;
 }
     
 
 void setup_controller(void)
 {
+    // We want to disable the controller from running while we are
+    // re-calculating gains and desired pose and such
+    pause_controller_flag = 1;
     static int data_count = 0;
     float k = 0.0;
-    float tmp = 0.0;
+    double tmp = 0.0;
     // let's first interpret the string sent to the robot
     tmp = InterpNumber(&Command_String[2]);
     run_fifo(tmp, tvec);
@@ -1604,7 +1638,6 @@ void setup_controller(void)
     {
 	if (data_count >= 2)
 	{
-	    mLED_3_Toggle();
 	    exec_state = 5;
 	    data_count = 0;
 	}
@@ -1622,6 +1655,7 @@ void setup_controller(void)
         calculate_controller_gains();
 
     data_count++;
+    pause_controller_flag = 0;
     return;
 }
 
@@ -1636,7 +1670,23 @@ float clamp_angle(float th)
 
 void run_controller(void)
 {
-    mLED_3_Toggle();
+    // let's find out which waypoint we should be following:
+    if (running_dt >= fabs(dt) && waypoint_index == 2)
+    {
+	running_dt = 0.0;
+	waypoint_index = 1;
+    }
+    else if (running_dt >= fabs(dt2) && waypoint_index == 1)
+    {
+	running_dt = 0.0;
+	waypoint_index = 0;
+    }
+
+    t_sent = tvec[waypoint_index];
+    x_sent = xvec[waypoint_index];
+    y_sent = yvec[waypoint_index];
+    ori_sent = thvec[waypoint_index];
+    
     float dth = find_min_angle(ori_sent, theta);
     float v_robot = vd*cosf(dth) + k1*(cosf(theta)*(x_sent-x_pos) +
 				       sinf(theta)*(y_sent-y_pos));
