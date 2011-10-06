@@ -1644,11 +1644,11 @@ int calculate_feedforward_values(const float k)
     }
     else
     {
-        wd = (ydd*xd - xdd*yd)/tmp;
+        wd = dir_sign*(ydd*xd - xdd*yd)/tmp;
 	wd = alpha*wd+(1-alpha)*wd_last;
     }
     wd_last = wd;
-        
+
     return 0;
 }
 
@@ -1847,14 +1847,14 @@ void check_safety(void)
     float max_ori_err = 0.2*180/M_PI;
     float max_winch_err = 0.1;
 
-    /* if(fabsf(x_pos-x_sent) >= max_pos_err || */
-    /*    fabsf(y_pos-y_sent) >= max_pos_err) */
-    /* 	reset_robot(); */
-    /* if(fabsf(find_min_angle(theta,ori_sent)) >= max_ori_err) */
-    /* 	reset_robot(); */
-    /* if(fabsf(height_left-height_left_sent) >= max_winch_err || */
-    /*    fabsf(height_right-height_right_sent) >= max_winch_err) */
-    /* 	reset_robot(); */
+    if(fabsf(x_pos-x_sent) >= max_pos_err ||
+       fabsf(y_pos-y_sent) >= max_pos_err)
+    	reset_robot();
+    if(fabsf(find_min_angle(theta,ori_sent)) >= max_ori_err)
+    	reset_robot();
+    if(fabsf(height_left-height_left_sent) >= max_winch_err)
+       /* fabsf(height_right-height_right_sent) >= max_winch_err) */
+    	reset_robot();
 
     return;
 }
