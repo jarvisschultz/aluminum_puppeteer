@@ -32,7 +32,9 @@ int GetStepsTopLeft(void);
 void SetStepsTopRight(int set_steps);        
 void SetSpeedTopRight(float motor_speed, float dt); 	
 float GetSpeedTopRight(void);				
-int GetStepsTopRight(void);		 		
+int GetStepsTopRight(void);
+
+void stop_all_motors(void);
 
 /******************************************************************************
  * FUNCTIONS FOR INITIALIZATIONS **********************************************
@@ -69,7 +71,8 @@ int calculate_feedforward_values(const float k);
 void setup_controller(void);
 void run_controller(void);
 void setup_winch_controller(void);
-void run_winch_controller(void);
+void run_winch_controller(int recalc);
+void check_safety(void);
 
 /******************************************************************************
  * MISCELLANEOUS FUNCTIONS ****************************************************

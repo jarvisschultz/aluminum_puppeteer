@@ -440,11 +440,19 @@ void __ISR(_INPUT_CAPTURE_1_VECTOR, ipl5) CheckPosition_t_r()
 
 void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout()
 {
+    float max_speed_err = 10.0;
+    float max_dead_err = 0.1;
     // If any motor is running, and timeout_flag is high, we are going to reset:
     if (timeout_flag == 1)
     {
-	if( (fabs(left_desired) >= 0.1) || (fabs(right_desired) >= 0.1)
-	    || (fabs(top_left_desired) >= 0.1) || (fabs(top_right_desired) >= 0.1))
+	if((fabs(left_speed) >= max_speed_err) ||
+	   (fabs(right_speed) >= max_speed_err) ||
+	   (fabs(top_left_speed) >= max_speed_err) ||
+	   (fabs(top_right_speed) >= max_speed_err) ||
+	   (fabs(left_desired) >= max_dead_err) ||
+	   (fabs(right_desired) >= max_dead_err) ||
+	   (fabs(top_left_desired) >= max_dead_err) ||
+	   (fabs(top_right_desired) >= max_dead_err))
 	{
 	    // Reset!
 	    reset_robot();
@@ -1203,10 +1211,7 @@ void interp_command(void)
 
     case 'r':
 	exec_state = 1;
-	left_desired = 0.0;
-	right_desired = 0.0;
-	top_left_desired = 0.0;
-	top_right_desired = 0.0;
+	stop_all_motors();
 		
 	x_pos = 0.0;
 	y_pos = 0.0;
@@ -1254,10 +1259,7 @@ void interp_command(void)
 
     case 'q':
 	exec_state = 1;
-	left_desired = 0.0;
-	right_desired = 0.0;
-	top_left_desired = 0.0;
-	top_right_desired = 0.0;
+	stop_all_motors();
 	movement_flag = 0;
 	break;
 
@@ -1489,12 +1491,16 @@ void reset_robot(void)
 {
     // First, let's disable all interrupts:
     INTDisableInterrupts();
+
+    // disable any running controllers:
+    pose_flag = 0;
+    controller_flag = 0;
      
     // Now, shut down all PWM and endcoder pins:
     CloseOC1();
     CloseOC2();
     CloseOC3();
-    
+
     // Now, we can restart robot:
     SoftReset();
     asm("nop");
@@ -1632,7 +1638,6 @@ int calculate_feedforward_values(const float k)
     vd = dir_sign*sqrt(tmp);
     if (tmp < 0.00001)
     {
-	mLED_3_Toggle();
     	wd = 0;
     	return 1;
     }
@@ -1657,14 +1662,26 @@ void setup_winch_controller(void)
     tmp = interp_number(&Command_String[14]);
     run_fifo(tmp, rhtvec);
 
-    // calculate feedforward velocities:
-    vlff[2] = vlff[1];
-    vlff[1] = (lftvec[0]-lftvec[1])/dt2;
-    vlff[0] = vlff[1];
-    
-    vrff[2] = vrff[1];
-    vrff[1] = (rhtvec[0]-rhtvec[1])/dt2;
-    vrff[0] = vrff[1];
+    /* // store old "slopes" */
+    /* vlff[2] = vlff[1]; */
+    /* vrff[2] = vrff[1]; */
+
+    // calculate new slopes:
+    if(fabs(dt2) >= 0.0001)
+    {
+	// calculate feedforward velocities:
+	vlff[1] = (lftvec[0]-lftvec[1])/dt2;
+	vlff[0] = vlff[1];
+        vrff[1] = (rhtvec[0]-rhtvec[1])/dt2;
+	vrff[0] = vrff[1];
+    }
+    else
+    {
+	vlff[1] = 0;
+	vlff[0] = 0;
+	vrff[1] = 0;
+	vrff[0] = 0;
+    }
 
     pause_controller_flag = 0;
     return;
@@ -1696,6 +1713,7 @@ void setup_controller(void)
 	    dir_sign = -1.0;
 	    data_count = 0;
 	    exec_state = 0;
+	    stop_all_motors();
 	}
     }
     else
@@ -1707,6 +1725,7 @@ void setup_controller(void)
 	    dir_sign = 1.0;
 	    data_count = 0;
 	    exec_state = 0;
+	    stop_all_motors();
 	}
     }
 
@@ -1748,16 +1767,19 @@ float clamp_angle(float th)
 
 void run_controller(void)
 {
+    int recalc = 0;
     // let's find out which waypoint we should be following:
     if (running_dt >= fabs(dt) && waypoint_index == 2)
     {
 	running_dt = 0.0;
 	waypoint_index = 1;
+	recalc = 1;
     }
     else if (running_dt >= fabs(dt2) && waypoint_index == 1)
     {
 	running_dt = 0.0;
 	waypoint_index = 0;
+	recalc = 1;
     }
 
     t_sent = tvec[waypoint_index];
@@ -1776,30 +1798,55 @@ void run_controller(void)
 
     // if necessary, run winch controller:
     if (winch_controller_flag == 1)
-	run_winch_controller();
+	run_winch_controller(recalc);
+
+    check_safety();
     
     controller_flag = 0;
     return;
 }
 
-void run_winch_controller(void)
+void run_winch_controller(int recalc)
 {
     static double vl = 0.0, vr = 0.0;
     /* static double hrefl = 0.0, hrefr = 0.0; */
     /* static double k = 1.0; */
-    
+
     height_left_sent = lftvec[waypoint_index];
     height_right_sent = rhtvec[waypoint_index];
 
-    vl = vlff[waypoint_index];
-    vr = vrff[waypoint_index];
+    if (recalc == 1)
+    {
+	if ((fabs(dt) > 0.0001) && (fabs(dt2) > 0.0001))
+	{
+	    if (waypoint_index == 2)
+	    {
+		vl = (height_left_sent-height_left)/fabs(dt);
+		vr = (height_right_sent-height_right)/fabs(dt);
+	    }
+	    else
+	    {
+		vl = (height_left_sent-height_left)/fabs(dt2);
+		vr = (height_right_sent-height_right)/fabs(dt2);
+	    }
+	}dd
+	else
+	{
+	    vl = 0;
+	    vr = 0;
+	}
+    }
+    /* vl = vlff[waypoint_index]; */
+    /* vr = vrff[waypoint_index]; */
 
-    if ((vl >= 0 && height_left >= height_left_sent) ||
-	(vl <= 0 && height_left <= height_left_sent))
+    if ((vl >= 0) && (height_left >= height_left_sent))
 	vl = 0;
-    if ((vr >= 0 && height_right >= height_right_sent) ||
-	(vr <= 0 && height_right <= height_right_sent))
-	vr = 0;       
+    if ((vl < 0) && (height_left <= height_left_sent))
+	vl = 0;
+    if ((vr >= 0) && (height_right >= height_right_sent))
+	vr = 0;
+    if ((vr < 0) && (height_right <= height_right_sent))
+	vr = 0;
 
     /* if (waypoint_index != 0) */
     /* { */
@@ -1814,12 +1861,40 @@ void run_winch_controller(void)
     /* 	hrefr = rhtvec[0]; */
     /* } */
 
-    /* vl = k*(hrefl-height_left); */
-    /* vr = k*(hrefr-height_right); */
+    /* vl = 20.0*(hrefl-height_left)/controller_freq; */
+    /* vr = 20.0*(hrefr-height_right)/controller_freq; */
 
     // convert to angular velocities:    
     top_left_desired = 2.0*vl/DPULLEY;
     top_right_desired = 2.0*vr/DPULLEY;
+
+    return;
+}
+
+
+void stop_all_motors(void)
+{
+    left_desired = 0.0;
+    right_desired = 0.0;
+    top_left_desired = 0.0;
+    top_right_desired = 0.0;
+    return;
+}
+	
+void check_safety(void)
+{
+    float max_pos_err = 0.1;
+    float max_ori_err = 0.2*180/M_PI;
+    float max_winch_err = 0.1;
+
+    /* if(fabs(x_pos-x_sent) >= max_pos_err || */
+    /*    fabs(y_pos-y_sent) >= max_pos_err) */
+    /* 	reset_robot(); */
+    /* if(fabs(find_min_angle(theta,ori_sent)) >= max_ori_err) */
+    /* 	reset_robot(); */
+    /* if(fabs(height_left-height_left_sent) >= max_winch_err || */
+       /* fabs(height_right-height_right_sent) >= max_winch_err) */
+    	/* reset_robot(); */
 
     return;
 }
