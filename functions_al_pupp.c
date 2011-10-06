@@ -1169,13 +1169,12 @@ void interp_command(void)
     	    if (Command_String[j] != 0)
 	    {
 		movement_flag = 0;
-		mLED_2_Off();
 		break;
 	    }
 	    else
 	    {
 		movement_flag = 1;
-		mLED_2_On();
+		mLED_2_Toggle();
 	    }
     	}
     }
@@ -1258,9 +1257,10 @@ void interp_command(void)
 	break;
 
     case 'q':
-	exec_state = 1;
+	exec_state = 0;
 	stop_all_motors();
 	movement_flag = 0;
+	mLED_2_Toggle();
 	break;
 
     case 'w':
@@ -1611,7 +1611,6 @@ int calculate_feedforward_values(const float k)
 
     if ( fabsf(dt)<0.00001 || fabsf(dt2)<=0.00001 )
     {
-	mLED_3_Toggle();
         vd = 0;
         wd = 0;
 	return 1;
@@ -1847,14 +1846,14 @@ void check_safety(void)
     float max_ori_err = 0.2*180/M_PI;
     float max_winch_err = 0.1;
 
-    if(fabsf(x_pos-x_sent) >= max_pos_err ||
-       fabsf(y_pos-y_sent) >= max_pos_err)
-    	reset_robot();
-    if(fabsf(find_min_angle(theta,ori_sent)) >= max_ori_err)
-    	reset_robot();
-    if(fabsf(height_left-height_left_sent) >= max_winch_err)
-       /* fabsf(height_right-height_right_sent) >= max_winch_err) */
-    	reset_robot();
+    /* if(fabsf(x_pos-x_sent) >= max_pos_err || */
+    /*    fabsf(y_pos-y_sent) >= max_pos_err) */
+    /* 	reset_robot(); */
+    /* if(fabsf(find_min_angle(theta,ori_sent)) >= max_ori_err) */
+    /* 	reset_robot(); */
+    /* if(fabsf(height_left-height_left_sent) >= max_winch_err) */
+    /*    /\* fabsf(height_right-height_right_sent) >= max_winch_err) *\/ */
+    /* 	reset_robot(); */
 
     return;
 }

@@ -131,7 +131,7 @@ int main()
     putcUART2(ID);
     while(BusyUART2());
     putsUART2("\n\r");
-
+    CloseUART2();
     while(swProgram)
     {
 	mLED_1_On();
@@ -143,13 +143,14 @@ int main()
     mLED_2_Off();
     mLED_3_Off();
     mLED_4_Off();
-    
 
+    // Re-initialize UART2
+    InitUART2(PbClk);
     // Initialize the second timer for checking kinematics:
     InitTimer2();
     // Initialize the fourth timer for data string timeouts:
     InitTimer4();
-    // Initialize the Encoders:
+    // Initialize the Encoders (and all interrupts):
     InitEncoder();
     // Initialize Watchdog Timer
     ClearEventWDT();
