@@ -193,27 +193,27 @@ static short int timeout_flag = 0;
 static short int bad_data_counter = 0;
 
 //  Kinematic controller variables:
-static double dir_sign = 1.0;
-static double tvec[3] = {0.0, 0.0, 0.0};
-static double xvec[3] = {0.0, 0.0, 0.0};
-static double yvec[3] = {0.0, 0.0, 0.0};
-static double thvec[3] = {0.0, 0.0, 0.0};
-static double lftvec[3] = {0.0, 0.0, 0.0};
-static double rhtvec[3] = {0.0, 0.0, 0.0};
-static double k1 = 0.0;
-static double k2 = 0.0;
-static double t_sent = 0.0;
-static double vd = 0.0;
-static double wd = 0.0;
+static float dir_sign = 1.0;
+static float tvec[3] = {0.0, 0.0, 0.0};
+static float xvec[3] = {0.0, 0.0, 0.0};
+static float yvec[3] = {0.0, 0.0, 0.0};
+static float thvec[3] = {0.0, 0.0, 0.0};
+static float lftvec[3] = {0.0, 0.0, 0.0};
+static float rhtvec[3] = {0.0, 0.0, 0.0};
+static float k1 = 0.0;
+static float k2 = 0.0;
+static float t_sent = 0.0;
+static float vd = 0.0;
+static float wd = 0.0;
 static unsigned int controller_flag = 0;
 static unsigned int pause_controller_flag = 0;
-static double dt = 0.0;
-static double dt2 = 0.0;
-static double running_dt = 0.0;
+static float dt = 0.0;
+static float dt2 = 0.0;
+static float running_dt = 0.0;
 static unsigned short waypoint_index = 0;
 static unsigned int winch_controller_flag = 0;
-static double vlff[3] = {0.0, 0.0, 0.0};
-static double vrff[3] = {0.0, 0.0, 0.0};
+/* static float vlff[3] = {0.0, 0.0, 0.0}; */
+/* static float vrff[3] = {0.0, 0.0, 0.0}; */
 
 /** Interrupt Handler Functions:**************************************************************************************************/
 // UART 2 interrupt handler
@@ -445,14 +445,14 @@ void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout()
     // If any motor is running, and timeout_flag is high, we are going to reset:
     if (timeout_flag == 1)
     {
-	if((fabs(left_speed) >= max_speed_err) ||
-	   (fabs(right_speed) >= max_speed_err) ||
-	   (fabs(top_left_speed) >= max_speed_err) ||
-	   (fabs(top_right_speed) >= max_speed_err) ||
-	   (fabs(left_desired) >= max_dead_err) ||
-	   (fabs(right_desired) >= max_dead_err) ||
-	   (fabs(top_left_desired) >= max_dead_err) ||
-	   (fabs(top_right_desired) >= max_dead_err))
+	if((fabsf(left_speed) >= max_speed_err) ||
+	   (fabsf(right_speed) >= max_speed_err) ||
+	   (fabsf(top_left_speed) >= max_speed_err) ||
+	   (fabsf(top_right_speed) >= max_speed_err) ||
+	   (fabsf(left_desired) >= max_dead_err) ||
+	   (fabsf(right_desired) >= max_dead_err) ||
+	   (fabsf(top_left_desired) >= max_dead_err) ||
+	   (fabsf(top_right_desired) >= max_dead_err))
 	{
 	    // Reset!
 	    reset_robot();
@@ -506,10 +506,10 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     /* dt = ticktime*(((float) ReadTimer2())+1.0)+dtbase; */
 
     // Now, we set the PWM Values:
-    if(fabs(left_error) > ERROR_DEADBAND) SetSpeedLeft(left_error, dtbase);
-    if(fabs(right_error) > ERROR_DEADBAND) SetSpeedRight(right_error, dtbase);
-    if(fabs(top_left_error) > ERROR_DEADBAND) SetSpeedTopLeft(top_left_error, dtbase);
-    if(fabs(top_right_error) > ERROR_DEADBAND) SetSpeedTopRight(top_right_error, dtbase);
+    if(fabsf(left_error) > ERROR_DEADBAND) SetSpeedLeft(left_error, dtbase);
+    if(fabsf(right_error) > ERROR_DEADBAND) SetSpeedRight(right_error, dtbase);
+    if(fabsf(top_left_error) > ERROR_DEADBAND) SetSpeedTopLeft(top_left_error, dtbase);
+    if(fabsf(top_right_error) > ERROR_DEADBAND) SetSpeedTopRight(top_right_error, dtbase);
 
     // Now let's get the wheels speeds and convert them into translational velocities
     Vr = (DWHEEL/2.0)*(right_speed);
@@ -522,7 +522,7 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     omega = (Vr-Vl)/(2.0*WIDTH);
 		
     // Now we do the forward kinematics
-    if (fabs(R) > 10000.0) // This would imply that the robot is essentially going straight
+    if (fabsf(R) > 10000.0) // This would imply that the robot is essentially going straight
     {
 	// So, let's perform the straight version kinematics
 	x_pos += Vr*dtbase*cosf(theta);
@@ -551,7 +551,7 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     case 2:
 	// Are we performing an initial rotation to begin heading towards our destination?
 	// Now, let's determine if we have reached the desired orientation yet
-	if(fabs(theta-first_angle) <= 0.01 || fabs(fabs(theta-first_angle)-2.0*M_PI) <= 0.01)
+	if(fabsf(theta-first_angle) <= 0.01 || fabsf(fabsf(theta-first_angle)-2.0*M_PI) <= 0.01)
 	{
 	    theta = first_angle;
 	    exec_state = 3;
@@ -562,7 +562,7 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 	break;
     case 3:
 	// Now, are we there yet?
-	if(fabs(x_sent-x_pos) < 0.05 && fabs(y_sent-y_pos) < 0.05)
+	if(fabsf(x_sent-x_pos) < 0.05 && fabsf(y_sent-y_pos) < 0.05)
 	{
 	    x_pos = x_sent;
 	    y_pos = y_sent;
@@ -574,7 +574,7 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 	break;
     case 4:
 	// Now, let's determine if we have reached the final orientation yet
-	if(fabs(theta-ori_sent) <= 0.01 || fabs(fabs(theta-ori_sent)-2.0*M_PI) <= 0.01)
+	if(fabsf(theta-ori_sent) <= 0.01 || fabsf(fabsf(theta-ori_sent)-2.0*M_PI) <= 0.01)
 	{
 	    theta = ori_sent;
 	    // Since we have, we don't need to keep updating the kinematics
@@ -709,7 +709,7 @@ void SetSpeedLeft(float error, float dt)  // motor speed in rad/s
     // Calculate total error:
     total_error = error*kp+sum_error*ki+d_error*kd;
     // Get PWM Value:
-    PWMVal = (unsigned int) (fabs(total_error));
+    PWMVal = (unsigned int) (fabsf(total_error));
     // Set stored values:
     last_error = error;
     last_d_error = d_error;
@@ -753,7 +753,7 @@ void SetSpeedRight(float error, float dt)  // motor speed in rad/s
     // Calculate total error:
     total_error = error*kp+sum_error*ki+d_error*kd;
     // Get PWM Value:
-    PWMVal = (unsigned int) (fabs(total_error));
+    PWMVal = (unsigned int) (fabsf(total_error));
     // Set stored values:
     last_error = error;
     last_d_error = d_error;
@@ -795,7 +795,7 @@ void SetSpeedTopLeft(float error, float dt)  // motor speed in rad/s
     // Calculate total error:
     total_error = error*kp+sum_error*ki+d_error*kd;
     // Get PWM Value:
-    PWMVal = (unsigned int) (fabs(total_error));
+    PWMVal = (unsigned int) (fabsf(total_error));
     // Set stored values:
     last_error = error;
     last_d_error = d_error;
@@ -834,7 +834,7 @@ void SetSpeedTopRight(float error, float dt)  // motor speed in rad/s
     // Calculate total error:
     total_error = error*kp+sum_error*ki+d_error*kd;
     // Get PWM Value:
-    PWMVal = (unsigned int) (fabs(total_error));
+    PWMVal = (unsigned int) (fabsf(total_error));
     // Set stored values:
     last_error = error;
     last_d_error = d_error;
@@ -1015,7 +1015,7 @@ void SetPose(float xdest,float ydest,float thdest)
     {
 	// First, let's calculate the angle that we need to rotate through to 
 	// begin heading towards the desired point:
-	if(fabs(xdest-x_pos) < 0.000001 && fabs(ydest-y_pos) < 0.000001)
+	if(fabsf(xdest-x_pos) < 0.000001 && fabsf(ydest-y_pos) < 0.000001)
 	{
 	    first_angle = theta;
 	}	
@@ -1050,7 +1050,7 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot1_f = -1;
 	}
-	costf += find_min(fabs(first_angle-theta-2*M_PI),fabs(first_angle-theta));
+	costf += find_min(fabsf(first_angle-theta-2*M_PI),fabsf(first_angle-theta));
 		
 		
 	// Now calculate the minimum cost of the final rotation for this case:
@@ -1065,7 +1065,7 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot2_f = -1;
 	}
-	costf += find_min(fabs(ori_sent-first_angle),fabs(fabs(ori_sent-first_angle)-2*M_PI));
+	costf += find_min(fabsf(ori_sent-first_angle),fabsf(fabsf(ori_sent-first_angle)-2*M_PI));
 		
 	// Now, let's assume backwards operation.
 	// Start by calculating the minimum cost of the initial rotation for this case:
@@ -1080,7 +1080,7 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot1_b = -1;
 	}
-	costb += find_min(fabs(first_angle-thback),fabs(fabs(first_angle-thback)-2*M_PI));
+	costb += find_min(fabsf(first_angle-thback),fabsf(fabsf(first_angle-thback)-2*M_PI));
 		
 	// Now calculate the minimum cost of the final rotation for this case:
 	if(((tpback-first_angle >= 0)&&(tpback-first_angle <= M_PI))||
@@ -1094,7 +1094,7 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot2_b = -1;
 	}
-	costb += find_min(fabs(tpback-first_angle),fabs(fabs(tpback-first_angle)-2*M_PI));
+	costb += find_min(fabsf(tpback-first_angle),fabsf(fabsf(tpback-first_angle)-2*M_PI));
 
 	// Now lets figure out which costs less?
 	if (costf <= costb)
@@ -1386,16 +1386,16 @@ float find_min_angle(float a, float b)
     comps[1] = comps[0]+2.0*M_PI;
     comps[2] = comps[0]-2.0*M_PI;
 
-    if ( fabs(comps[0]) < fabs(comps[1]))
+    if ( fabsf(comps[0]) < fabsf(comps[1]))
     {
-	if (fabs(comps[0]) < fabs(comps[2]))
+	if (fabsf(comps[0]) < fabsf(comps[2]))
 	    dth = comps[0];
 	else
 	    dth = comps[2];
     }
     else
     {
-	if (fabs(comps[1]) < fabs(comps[2]))
+	if (fabsf(comps[1]) < fabsf(comps[2]))
 	    dth = comps[1];
 	else
 	    dth = comps[2];
@@ -1576,7 +1576,7 @@ void delay(void)
     while(num_calls) num_calls--;
 }
 
-void run_fifo(const double new_val, double *array)
+void run_fifo(const float new_val, float *array)
 {
     int i = 0;
     for(i=2; i>0; i--)
@@ -1591,15 +1591,15 @@ void calculate_controller_gains(void)
     static float b = 10;
 
     k1 = 2*zeta*sqrtf( powf(wd,2.0) + b*powf(vd,2.0) );
-    k2 = b*fabs(vd);
+    k2 = b*fabsf(vd);
 
     return;
 }
 
 int calculate_feedforward_values(const float k)
 {
-    static double alpha = 0.3;
-    static double wd_last = 0.0;
+    static float alpha = 0.3;
+    static float wd_last = 0.0;
     // reset the running time because we got a new pt:
     running_dt = 0.0;
     // reset the index marking which point in the buffer we are
@@ -1609,19 +1609,20 @@ int calculate_feedforward_values(const float k)
     dt2 = tvec[0]-tvec[1];
     dt = tvec[1]-tvec[2];
 
-    if ( fabs(dt)<0.00001 || fabs(dt2)<=0.00001 )
+    if ( fabsf(dt)<0.00001 || fabsf(dt2)<=0.00001 )
     {
+	mLED_3_Toggle();
         vd = 0;
         wd = 0;
 	return 1;
     }
 
-    double xd = (xvec[1]-xvec[2])/dt;
-    double yd = (yvec[1]-yvec[2])/dt;
-    double xdp = (xvec[0]-xvec[1])/dt2;
-    double ydp = (yvec[0]-yvec[1])/dt2;
-    double xdd = (xdp-xd)/dt;
-    double ydd = (ydp-yd)/dt;
+    float xd = (xvec[1]-xvec[2])/(dt);
+    float yd = (yvec[1]-yvec[2])/(dt);
+    float xdp = (xvec[0]-xvec[1])/(dt2);
+    float ydp = (yvec[0]-yvec[1])/(dt2);
+    float xdd = (xdp-xd)/(dt);
+    float ydd = (ydp-yd)/(dt);
 
     // now we can calculate the orientation at the new desired
     // pose
@@ -1634,7 +1635,7 @@ int calculate_feedforward_values(const float k)
     thvec[0] = thvec[1];
 
     // Now we can calculate the feedforward terms
-    double tmp = pow(xd,2.0) + pow(yd,2.0);
+    float tmp = powf(xd,2.0) + powf(yd,2.0);
     vd = dir_sign*sqrt(tmp);
     if (tmp < 0.00001)
     {
@@ -1655,33 +1656,12 @@ void setup_winch_controller(void)
 {
     // Pause controller while running this function
     pause_controller_flag = 1;
-    double tmp = 0.0;
+    float tmp = 0.0;
     // read string
     tmp = interp_number(&Command_String[11]);
     run_fifo(tmp, lftvec);
     tmp = interp_number(&Command_String[14]);
     run_fifo(tmp, rhtvec);
-
-    /* // store old "slopes" */
-    /* vlff[2] = vlff[1]; */
-    /* vrff[2] = vrff[1]; */
-
-    // calculate new slopes:
-    if(fabs(dt2) >= 0.0001)
-    {
-	// calculate feedforward velocities:
-	vlff[1] = (lftvec[0]-lftvec[1])/dt2;
-	vlff[0] = vlff[1];
-        vrff[1] = (rhtvec[0]-rhtvec[1])/dt2;
-	vrff[0] = vrff[1];
-    }
-    else
-    {
-	vlff[1] = 0;
-	vlff[0] = 0;
-	vrff[1] = 0;
-	vrff[0] = 0;
-    }
 
     pause_controller_flag = 0;
     return;
@@ -1694,7 +1674,7 @@ void setup_controller(void)
     pause_controller_flag = 1;
     static int data_count = 0;
     float k = 0.0;
-    double tmp = 0.0;
+    float tmp = 0.0;
     // let's first interpret the string sent to the robot
     tmp = interp_number(&Command_String[2]);
     run_fifo(tmp, tvec);
@@ -1769,13 +1749,13 @@ void run_controller(void)
 {
     int recalc = 0;
     // let's find out which waypoint we should be following:
-    if (running_dt >= fabs(dt) && waypoint_index == 2)
+    if (running_dt >= fabsf(dt) && waypoint_index == 2)
     {
 	running_dt = 0.0;
 	waypoint_index = 1;
 	recalc = 1;
     }
-    else if (running_dt >= fabs(dt2) && waypoint_index == 1)
+    else if (running_dt >= fabsf(dt2) && waypoint_index == 1)
     {
 	running_dt = 0.0;
 	waypoint_index = 0;
@@ -1808,36 +1788,32 @@ void run_controller(void)
 
 void run_winch_controller(int recalc)
 {
-    static double vl = 0.0, vr = 0.0;
-    /* static double hrefl = 0.0, hrefr = 0.0; */
-    /* static double k = 1.0; */
+    static float vl = 0.0, vr = 0.0;
 
     height_left_sent = lftvec[waypoint_index];
     height_right_sent = rhtvec[waypoint_index];
 
     if (recalc == 1)
     {
-	if ((fabs(dt) > 0.0001) && (fabs(dt2) > 0.0001))
+	if ((fabsf(dt) > 0.0001) && (fabsf(dt2) > 0.0001))
 	{
 	    if (waypoint_index == 2)
 	    {
-		vl = (height_left_sent-height_left)/fabs(dt);
-		vr = (height_right_sent-height_right)/fabs(dt);
+		vl = (height_left_sent-height_left)/fabsf(dt);
+		vr = (height_right_sent-height_right)/fabsf(dt);
 	    }
 	    else
 	    {
-		vl = (height_left_sent-height_left)/fabs(dt2);
-		vr = (height_right_sent-height_right)/fabs(dt2);
+		vl = (height_left_sent-height_left)/fabsf(dt2);
+		vr = (height_right_sent-height_right)/fabsf(dt2);
 	    }
-	}dd
+	}
 	else
 	{
 	    vl = 0;
 	    vr = 0;
 	}
     }
-    /* vl = vlff[waypoint_index]; */
-    /* vr = vrff[waypoint_index]; */
 
     if ((vl >= 0) && (height_left >= height_left_sent))
 	vl = 0;
@@ -1847,22 +1823,6 @@ void run_winch_controller(int recalc)
 	vr = 0;
     if ((vr < 0) && (height_right <= height_right_sent))
 	vr = 0;
-
-    /* if (waypoint_index != 0) */
-    /* { */
-    /* 	// we are heading to either the first or second pt in the */
-    /* 	// buffer */
-    /* 	hrefl = lftvec[waypoint_index]+vl*(running_dt-tvec[waypoint_index]); */
-    /* 	hrefr = rhtvec[waypoint_index]+vr*(running_dt-tvec[waypoint_index]); */
-    /* } */
-    /* else */
-    /* { */
-    /* 	hrefl = lftvec[0]; */
-    /* 	hrefr = rhtvec[0]; */
-    /* } */
-
-    /* vl = 20.0*(hrefl-height_left)/controller_freq; */
-    /* vr = 20.0*(hrefr-height_right)/controller_freq; */
 
     // convert to angular velocities:    
     top_left_desired = 2.0*vl/DPULLEY;
@@ -1887,14 +1847,14 @@ void check_safety(void)
     float max_ori_err = 0.2*180/M_PI;
     float max_winch_err = 0.1;
 
-    /* if(fabs(x_pos-x_sent) >= max_pos_err || */
-    /*    fabs(y_pos-y_sent) >= max_pos_err) */
+    /* if(fabsf(x_pos-x_sent) >= max_pos_err || */
+    /*    fabsf(y_pos-y_sent) >= max_pos_err) */
     /* 	reset_robot(); */
-    /* if(fabs(find_min_angle(theta,ori_sent)) >= max_ori_err) */
+    /* if(fabsf(find_min_angle(theta,ori_sent)) >= max_ori_err) */
     /* 	reset_robot(); */
-    /* if(fabs(height_left-height_left_sent) >= max_winch_err || */
-       /* fabs(height_right-height_right_sent) >= max_winch_err) */
-    	/* reset_robot(); */
+    /* if(fabsf(height_left-height_left_sent) >= max_winch_err || */
+    /*    fabsf(height_right-height_right_sent) >= max_winch_err) */
+    /* 	reset_robot(); */
 
     return;
 }
