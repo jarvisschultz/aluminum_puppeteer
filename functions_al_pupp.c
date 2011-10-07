@@ -194,7 +194,7 @@ static short int bad_data_counter = 0;
 
 //  Kinematic controller variables:
 static float dir_sign = 1.0;
-static float tvec[3] = {0.0, 0.0, 0.0};
+static float tvec[2] = {0.0, 0.0};
 static float xvec[3] = {0.0, 0.0, 0.0};
 static float yvec[3] = {0.0, 0.0, 0.0};
 static float thvec[3] = {0.0, 0.0, 0.0};
@@ -1576,10 +1576,10 @@ void delay(void)
     while(num_calls) num_calls--;
 }
 
-void run_fifo(const float new_val, float *array)
+void run_fifo(const float new_val, float *array, const unsigned int size)
 {
     int i = 0;
-    for(i=2; i>0; i--)
+    for(i=size-1; i>0; i--)
 	array[i] = array[i-1];
     *array = new_val;
     return;
@@ -1606,8 +1606,8 @@ int calculate_feedforward_values(const float k)
     // concerned with
     waypoint_index = 2;
     // let's calculate the velocities and accelerations:
-    dt2 = tvec[0]-tvec[1];
-    dt = tvec[1]-tvec[2];
+    dt2 = tvec[0];
+    dt = tvec[1];
 
     if ( fabsf(dt)<0.00001 || fabsf(dt2)<=0.00001 )
     {
@@ -1648,6 +1648,9 @@ int calculate_feedforward_values(const float k)
     }
     wd_last = wd;
 
+    if(!swUser)
+	printf("%f\t%f\n\r",vd,wd);
+
     return 0;
 }
 
@@ -1658,9 +1661,9 @@ void setup_winch_controller(void)
     float tmp = 0.0;
     // read string
     tmp = interp_number(&Command_String[11]);
-    run_fifo(tmp, lftvec);
+    run_fifo(tmp, lftvec, 3);
     tmp = interp_number(&Command_String[14]);
-    run_fifo(tmp, rhtvec);
+    run_fifo(tmp, rhtvec, 3);
 
     pause_controller_flag = 0;
     return;
@@ -1676,14 +1679,14 @@ void setup_controller(void)
     float tmp = 0.0;
     // let's first interpret the string sent to the robot
     tmp = interp_number(&Command_String[2]);
-    run_fifo(tmp, tvec);
+    run_fifo(tmp, tvec, 2);
     tmp = interp_number(&Command_String[5]);
-    run_fifo(tmp, xvec);
+    run_fifo(tmp, xvec, 3);
     tmp = interp_number(&Command_String[8]);
-    run_fifo(tmp, yvec);
+    run_fifo(tmp, yvec, 3);
     
     // determine if we are currently going forward or backward:
-    if(tvec[0] < tvec[1])
+    if(tvec[0] < 0.0)
     {
 	// Backwards
 	if (dir_sign != -1.0)
