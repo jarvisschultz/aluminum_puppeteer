@@ -131,7 +131,7 @@ int main()
     putcUART2(ID);
     while(BusyUART2());
     putsUART2("\n\r");
-    CloseUART2();
+    /* CloseUART2(); */
     while(swProgram)
     {
 	mLED_1_On();
@@ -145,7 +145,7 @@ int main()
     mLED_4_Off();
 
     // Re-initialize UART2
-    InitUART2(PbClk);
+    /* InitUART2(PbClk); */
     // Initialize the second timer for checking kinematics:
     InitTimer2();
     // Initialize the fourth timer for data string timeouts:

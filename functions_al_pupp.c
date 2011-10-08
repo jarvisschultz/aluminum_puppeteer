@@ -212,6 +212,10 @@ static float dt2 = 0.0;
 static float running_dt = 0.0;
 static unsigned short waypoint_index = 0;
 static unsigned int winch_controller_flag = 0;
+static float xd = 0;
+static float xdd = 0;
+static float yd = 0;
+static float ydd = 0;
 /* static float vlff[3] = {0.0, 0.0, 0.0}; */
 /* static float vrff[3] = {0.0, 0.0, 0.0}; */
 
@@ -1598,8 +1602,12 @@ void calculate_controller_gains(void)
 
 int calculate_feedforward_values(const float k)
 {
-    static float alpha = 0.3;
+    static float alphaw = 0.1;
+    static float alphav = 0.3;
     static float wd_last = 0.0;
+    static float vd_last = 0.0;
+    static float dta = 0.0;
+    
     // reset the running time because we got a new pt:
     running_dt = 0.0;
     // reset the index marking which point in the buffer we are
@@ -1608,34 +1616,43 @@ int calculate_feedforward_values(const float k)
     // let's calculate the velocities and accelerations:
     dt2 = tvec[0];
     dt = tvec[1];
+    dta = (dt2+dt)/2.0;
 
-    if ( fabsf(dt)<0.00001 || fabsf(dt2)<=0.00001 )
+    if ( fabsf(dt)<0.00001 || fabsf(dt2)<=0.00001 ||  fabsf(dta)<=0.00001)
     {
         vd = 0;
         wd = 0;
 	return 1;
     }
 
-    float xd = (xvec[1]-xvec[2])/(dt);
-    float yd = (yvec[1]-yvec[2])/(dt);
-    float xdp = (xvec[0]-xvec[1])/(dt2);
-    float ydp = (yvec[0]-yvec[1])/(dt2);
-    float xdd = (xdp-xd)/(dt);
-    float ydd = (ydp-yd)/(dt);
+    /* float xd = (xvec[1]-xvec[2])/(dt); */
+    /* float yd = (yvec[1]-yvec[2])/(dt); */
+    /* float xdp = (xvec[0]-xvec[1])/(dt2); */
+    /* float ydp = (yvec[0]-yvec[1])/(dt2); */
+    /* float xdd = (xdp-xd)/(dt); */
+    /* float ydd = (ydp-yd)/(dt); */
 
+    xd = (xvec[0]-xvec[2])/(dt+dt2);
+    yd = (yvec[0]-yvec[2])/(dt+dt2);
+    xdd = (xvec[2]-2*xvec[1]+xvec[0])/(powf(dta,2.0));
+    ydd = (yvec[2]-2*yvec[1]+yvec[0])/(powf(dta,2.0));
+ 
     // now we can calculate the orientation at the new desired
     // pose
     thvec[2] = clamp_angle( atan2f(yd, xd) + k*M_PI);
     if(isnan(thvec[2]) != 0)
     	thvec[2] = theta;
-    thvec[1] = clamp_angle( atan2f(ydp, xdp) + k*M_PI);
-    if(isnan(thvec[1]) != 0)
-    	thvec[1] = theta;
-    thvec[0] = thvec[1];
+    thvec[1] = thvec[2];
+    thvec[0] = thvec[2];
+    /* thvec[1] = clamp_angle( atan2f(ydp, xdp) + k*M_PI); */
+    /* if(isnan(thvec[1]) != 0) */
+    /* 	thvec[1] = theta; */
+    /* thvec[0] = thvec[1]; */
 
     // Now we can calculate the feedforward terms
     float tmp = powf(xd,2.0) + powf(yd,2.0);
     vd = dir_sign*sqrt(tmp);
+    vd = alphav*vd+(1-alphav)*vd_last;
     if (tmp < 0.00001)
     {
     	wd = 0;
@@ -1644,9 +1661,10 @@ int calculate_feedforward_values(const float k)
     else
     {
         wd = dir_sign*(ydd*xd - xdd*yd)/tmp;
-	wd = alpha*wd+(1-alpha)*wd_last;
+	wd = alphaw*wd+(1-alphaw)*wd_last;
     }
     wd_last = wd;
+    vd_last = vd;
 
     if(!swUser)
 	printf("%f\t%f\n\r",vd,wd);
@@ -1751,23 +1769,37 @@ void run_controller(void)
 {
     int recalc = 0;
     // let's find out which waypoint we should be following:
-    if (running_dt >= fabsf(dt) && waypoint_index == 2)
+    if (running_dt >= fabsf(dt) && running_dt <= fabsf(dt2+dt))
     {
-	running_dt = 0.0;
-	waypoint_index = 1;
-	recalc = 1;
+    	waypoint_index = 1;
+    	recalc = 1;
     }
     else if (running_dt >= fabsf(dt2) && waypoint_index == 1)
     {
-	running_dt = 0.0;
-	waypoint_index = 0;
-	recalc = 1;
+    	waypoint_index = 0;
+    	recalc = 1;
     }
 
-    t_sent = tvec[waypoint_index];
-    x_sent = xvec[waypoint_index];
-    y_sent = yvec[waypoint_index];
-    ori_sent = thvec[waypoint_index];
+    /* t_sent = tvec[waypoint_index]; */
+    /* x_sent = xvec[waypoint_index]; */
+    /* y_sent = yvec[waypoint_index]; */
+    /* ori_sent = thvec[waypoint_index]; */
+    /* t_sent = tvec[1]; */
+    /* x_sent = xvec[1]; */
+    /* y_sent = yvec[1]; */
+
+    if (running_dt <= (dt+dt2))
+    {
+	t_sent = tvec[1]+running_dt*sign(xd);
+	x_sent = xvec[1]+running_dt*xd;
+	y_sent = yvec[1]+running_dt*yd;
+    }
+    else
+    {
+	x_sent = xvec[0];
+	y_sent = yvec[0];
+    }
+    ori_sent = thvec[1];
     
     float dth = find_min_angle(ori_sent, theta);
     float v_robot = vd*cosf(dth) + k1*(cosf(theta)*(x_sent-x_pos) +
