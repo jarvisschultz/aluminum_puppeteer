@@ -73,8 +73,12 @@ controller for trajectory following.
 #define SMALL_PACKET_SIZE	3 
 #define frequency  1500	       // Frequency we check kinematics at
 #define controller_freq  300    // Frequency to run kinematic controller at
-#define GEARRATIO  (19.0*(42.0/46.0))    // The gear ratio of the drivetrain
-#define TOPGEARRATIO (19.0*(10.0/14.0))  // Winch gear ratio
+// Aluminum puppeteer:
+/* #define GEARRATIO  (19.0*(42.0/46.0))    // The gear ratio of the drivetrain */
+/* #define TOPGEARRATIO (19.0*(10.0/14.0))  // Winch gear ratio */
+// Wooden puppeteer:
+#define GEARRATIO	(19.0*(3.0/4.0))
+#define TOPGEARRATIO	(19.0)
 #define CPR  100.0	               // counts per revolution of an encoder
 #define dtbase (1.0/frequency)         // The period of CheckKinematics calls
 #define convert (M_PI/(CPR*dtbase*GEARRATIO)) 
@@ -117,9 +121,13 @@ static float height_left = 0.0; // increases as string length decreases i.e.
 static float height_right = 0.0; // up is positive
 
 // Robot constants (in meters):
-static float DPULLEY = 0.034924999999999998; 
-/* static float WIDTH = 0.132334/2.0; */
-static float WIDTH = 0.148/2.0;
+// Aluminum Puppteer:
+/* static float DPULLEY = 0.034924999999999998;  */
+/* static float WIDTH = 0.148/2.0; */
+/* static float DWHEEL = 0.07619999999999; */
+// Wooden Puppeteer:
+static float DPULLEY = 0.019049999;
+static float WIDTH = 0.145/2.0;
 static float DWHEEL = 0.07619999999999;
 static float speed = 10.0;	// default driving speed
 
@@ -1560,7 +1568,7 @@ void create_send_array(unsigned short id, unsigned char *DataString)
     // Fill packet:
     packet[0] = DataString[0];
     sprintf((char*) &packet[1],"%d",id);
-        for(i = 2; i < PACKET_SIZE-1; i++)
+    for(i = 2; i < PACKET_SIZE-1; i++)
 	packet[i] = DataString[i-1];
 
     // Now, let's calculate a checksum:
@@ -1603,7 +1611,7 @@ void calculate_controller_gains(void)
 int calculate_feedforward_values(const float k)
 {
     static float alphaw = 0.1;
-    static float alphav = 0.3;
+    static float alphav = 0.1;
     static float wd_last = 0.0;
     static float vd_last = 0.0;
     static float dta = 0.0;
@@ -1667,8 +1675,7 @@ int calculate_feedforward_values(const float k)
     vd_last = vd;
 
     if(!swUser)
-	printf("%f\t%f\n\r",vd,wd);
-
+    	printf("%f\t%f\n\r",vd,wd);
     return 0;
 }
 
@@ -1877,9 +1884,9 @@ void stop_all_motors(void)
 	
 void check_safety(void)
 {
-    float max_pos_err = 0.1;
-    float max_ori_err = 0.2*180/M_PI;
-    float max_winch_err = 0.1;
+    /* float max_pos_err = 0.1; */
+    /* float max_ori_err = 0.2*180/M_PI; */
+    /* float max_winch_err = 0.1; */
 
     /* if(fabsf(x_pos-x_sent) >= max_pos_err || */
     /*    fabsf(y_pos-y_sent) >= max_pos_err) */
