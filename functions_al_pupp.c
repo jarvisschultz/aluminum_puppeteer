@@ -34,7 +34,7 @@ controller for trajectory following.
 
 /** Includes ************************************************/
 #include "HardwareProfile.h"
-#include <plib.h>
+/* #include <plib.h> */
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

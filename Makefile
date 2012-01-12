@@ -8,18 +8,30 @@ OBJ = functions_al_pupp.o\
 	main_al_pupp.o
 HDR = prototypes_al_pupp.h\
 	HardwareProfile.h
+PIC = 32MX460F512L
+TARGET = Al_Robot
 
-all : Al_Robot.hex
+all : $(TARGET).hex
 
-Al_Robot.hex : Al_Robot.elf
-	$(HX) "Al_Robot.elf"
+$(TARGET).hex : $(TARGET).elf
+	$(HX) $(TARGET).elf
 
-Al_Robot.elf : $(OBJ)
-	$(CC) -mprocessor=32MX460F512L $(OBJ) -v -Wall -o"Al_Robot.elf" -Wl,--defsym=__MPLAB_BUILD=1,-Map="Al_Robot.map"
+$(TARGET).elf : $(OBJ)
+	$(CC) -mprocessor=$(PIC) $(OBJ) -v -Wall -o $(TARGET).elf -Wl,--defsym=__MPLAB_BUILD=1,-Map=$(TARGET).map
 
 %.o : %.c $(HDR)
-	$(CC) -mprocessor=32MX460F512L -v -Wall -c $< -o $@ -I"." -g
+	$(CC) -mprocessor=$(PIC) -v -Wall -c $< -o $@ -I"." -g
 
 clean : 
-	$(RM) $(OBJ) "Al_Robot.elf" "Al_Robot.hex" "Al_Robot.map"
+	$(RM) $(OBJ) $(TARGET).elf $(TARGET).hex $(TARGET).map
+
+write : 
+	ubw32 -write $(TARGET).hex
+
+help : 
+	ubw32 -help
+
+reset : 
+	ubw32 -reset
+
 
