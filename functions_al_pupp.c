@@ -34,7 +34,6 @@ controller for trajectory following.
 
 /** Includes ************************************************/
 #include "HardwareProfile.h"
-/* #include <plib.h> */
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -122,13 +121,13 @@ static float height_right = 0.0; // up is positive
 
 // Robot constants (in meters):
 // Aluminum Puppteer:
-/* static float DPULLEY = 0.034924999999999998;  */
-/* static float WIDTH = 0.148/2.0; */
-/* static float DWHEEL = 0.07619999999999; */
-// Wooden Puppeteer:
-static float DPULLEY = 0.019049999;
-static float WIDTH = 0.145/2.0;
+static float DPULLEY = 0.034924999999999998;
+static float WIDTH = 0.148/2.0;
 static float DWHEEL = 0.07619999999999;
+// Wooden Puppeteer:
+/* static float DPULLEY = 0.019049999; */
+/* static float WIDTH = 0.145/2.0; */
+/* static float DWHEEL = 0.07619999999999; */
 static float speed = 10.0;	// default driving speed
 
 // Communication buffers and miscellaneous:
@@ -191,7 +190,7 @@ static unsigned char header_list[]={'p','l','r','h','s','q','m','w',
 //	'n' = All motor speed commands (L)
 //	'b' = Reset current winch height estimates (R)
 //	'a' = Set values for all configuration variables (L)
-//	'i' = Translational and rotational velocity command (L)
+//	'i' = Translational and rotational velocity command plus winches (L)
 /******************************************************************************/
 static short int bad_data_total = 0;
 static short int bad_data = 0;
