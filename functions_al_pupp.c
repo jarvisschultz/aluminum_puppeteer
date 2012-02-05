@@ -73,11 +73,11 @@ controller for trajectory following.
 #define frequency  1500	       // Frequency we check kinematics at
 #define controller_freq  300    // Frequency to run kinematic controller at
 // Aluminum puppeteer:
-/* #define GEARRATIO  (19.0*(42.0/46.0))    // The gear ratio of the drivetrain */
-/* #define TOPGEARRATIO (19.0*(10.0/14.0))  // Winch gear ratio */
+#define GEARRATIO  (19.0*(42.0/46.0))    // The gear ratio of the drivetrain
+#define TOPGEARRATIO (19.0*(10.0/14.0))  // Winch gear ratio
 // Wooden puppeteer:
-#define GEARRATIO	(19.0*(3.0/4.0))
-#define TOPGEARRATIO	(19.0)
+/* #define GEARRATIO	(19.0*(3.0/4.0)) */
+/* #define TOPGEARRATIO	(19.0) */
 #define CPR  100.0	               // counts per revolution of an encoder
 #define dtbase (1.0/frequency)         // The period of CheckKinematics calls
 #define convert (M_PI/(CPR*dtbase*GEARRATIO)) 
