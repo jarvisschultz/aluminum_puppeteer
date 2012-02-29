@@ -226,7 +226,7 @@ static float ydd = 0;
 /* static float vlff[3] = {0.0, 0.0, 0.0}; */
 /* static float vrff[3] = {0.0, 0.0, 0.0}; */
 
-/** Interrupt Handler Functions:**************************************************************************************************/
+/** Interrupt Handler Functions:***********************************************/
 // UART 2 interrupt handler
 // it is set at priority level 2
 void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
@@ -348,7 +348,8 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
     }
 }
 
-// This is the ISR that gets called when we detect a rising or falling edge on CHANNEL_A_R
+// This is the ISR that gets called when we detect a rising or
+// falling edge on CHANNEL_A_R
 void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl5) CheckPosition_r()
 {
     static int tempA, tempB;
@@ -358,11 +359,13 @@ void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl5) CheckPosition_r()
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC2);
 
-    // Now we can perform logic to determine which direction we are going and we can increment counter
+    // Now we can perform logic to determine which direction we are
+    // going and we can increment counter
     if(tempA)
     {
-	// So, we know that we just detected a rising edge on channel A.  Let's determine whether
-	// channel b is high or low to determine our direction:
+	// So, we know that we just detected a rising edge on channel
+	// A.  Let's determine whether channel b is high or low
+	// to determine our direction:
 	if(tempB) right_steps++;
 	else right_steps--;
     }
@@ -373,7 +376,8 @@ void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl5) CheckPosition_r()
     }
 }
 
-// This is the ISR that gets called when we detect a rising or falling edge on CHANNEL_A_L
+// This is the ISR that gets called when we detect a rising or
+// falling edge on CHANNEL_A_L
 void __ISR(_INPUT_CAPTURE_5_VECTOR, ipl5) CheckPosition_l()
 {
     static int tempA, tempB;
@@ -383,10 +387,12 @@ void __ISR(_INPUT_CAPTURE_5_VECTOR, ipl5) CheckPosition_l()
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC5);
 
-    // Now we can perform logic to determine which direction we are going and we can increment counter
+    // Now we can perform logic to determine which
+    // direction we are going and we can increment counter
     if(tempA)
     {
-	// So, we know that we just detected a rising edge on channel A.  Let's determine whether
+	// So, we know that we just detected a rising edge on
+	// channel A.  Let's determine whether
 	// channel b is high or low to determine our direction:
 	if(tempB) left_steps--;
 	else left_steps++;
@@ -399,7 +405,8 @@ void __ISR(_INPUT_CAPTURE_5_VECTOR, ipl5) CheckPosition_l()
 }
 
 
-// This is the ISR that gets called when we detect a rising or falling edge on CHANNEL_A_TL
+// This is the ISR that gets called when we detect a rising or
+// falling edge on CHANNEL_A_TL
 void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl5) CheckPosition_t_l()
 {
     static int tempA, tempB;
@@ -408,11 +415,13 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl5) CheckPosition_t_l()
 	
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC4);
-    // Now we can perform logic to determine which direction we are going and we can increment counter
+    // Now we can perform logic to determine which direction we are
+    // going and we can increment counter
     if(tempA)
     {
-	// So, we know that we just detected a rising edge on channel A.  Let's determine whether
-	// channel b is high or low to determine our direction:
+	// So, we know that we just detected a rising edge on channel A.
+	// Let's determine whether channel b is high or low to determine
+	// our direction:
 	if(tempB) top_left_steps++;
 	else top_left_steps--;
     }
@@ -424,7 +433,8 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl5) CheckPosition_t_l()
 }
 
 
-// This is the ISR that gets called when we detect a rising or falling edge on CHANNEL_A_TR
+// This is the ISR that gets called when we detect a rising or
+// falling edge on CHANNEL_A_TR
 void __ISR(_INPUT_CAPTURE_1_VECTOR, ipl5) CheckPosition_t_r()
 {
     static int tempA, tempB;
@@ -433,11 +443,13 @@ void __ISR(_INPUT_CAPTURE_1_VECTOR, ipl5) CheckPosition_t_r()
 	
     // Let's clear the interrupt flag:
     INTClearFlag(INT_IC1);
-    // Now we can perform logic to determine which direction we are going and we can increment counter
+    // Now we can perform logic to determine which direction we are going
+    // and we can increment counter
     if(tempA)
     {
-	// So, we know that we just detected a rising edge on channel A.  Let's determine whether
-	// channel b is high or low to determine our direction:
+	// So, we know that we just detected a rising edge on channel A.
+	// Let's determine whether channel b is high or low to determine
+	// our direction:
 	if(tempB) top_right_steps--;
 	else top_right_steps++;
     }
@@ -498,8 +510,10 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     // Let's first calculate the current angular velocity of each wheel:
     left_speed = convert*((float) (left_current-left_steps_last));
     right_speed = convert*((float) (right_current-right_steps_last));
-    top_left_speed = converttop*((float) (top_left_current-top_left_steps_last));
-    top_right_speed = converttop*((float) (top_right_current-top_right_steps_last));
+    top_left_speed = converttop*
+	((float) (top_left_current-top_left_steps_last));
+    top_right_speed = converttop*
+	((float) (top_right_current-top_right_steps_last));
 	
     // Now let's store the current counts for the next CheckKinematics call:
     left_steps_last = left_current;
@@ -513,27 +527,28 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     float top_left_error = top_left_desired-top_left_speed;
     float top_right_error = top_right_desired-top_right_speed;
     
-    // Now let's calculate how long it has been since this function has been called.
-    /* dt = ticktime*(((float) ReadTimer2())+1.0)+dtbase; */
-
     // Now, we set the PWM Values:
     if(fabsf(left_error) > ERROR_DEADBAND) SetSpeedLeft(left_error, dtbase);
     if(fabsf(right_error) > ERROR_DEADBAND) SetSpeedRight(right_error, dtbase);
-    if(fabsf(top_left_error) > ERROR_DEADBAND) SetSpeedTopLeft(top_left_error, dtbase);
-    if(fabsf(top_right_error) > ERROR_DEADBAND) SetSpeedTopRight(top_right_error, dtbase);
+    if(fabsf(top_left_error) > ERROR_DEADBAND)
+	SetSpeedTopLeft(top_left_error, dtbase);
+    if(fabsf(top_right_error) > ERROR_DEADBAND)
+	SetSpeedTopRight(top_right_error, dtbase);
 
-    // Now let's get the wheels speeds and convert them into translational velocities
+    // Now let's get the wheels speeds and convert them into
+    // translational velocities
     Vr = (DWHEEL/2.0)*(right_speed);
     Vl = (DWHEEL/2.0)*(left_speed);
     Vtl = (DPULLEY/2.0)*(top_left_speed);
     Vtr = (DPULLEY/2.0)*(top_right_speed);
 		
-    // Let's calculate the distance to the instantaneous center of rotation and the angular vel.
+    // Let's calculate the distance to the instantaneous
+    // center of rotation and the angular vel.
     R = WIDTH*((Vl+Vr)/(Vr-Vl));
     omega = (Vr-Vl)/(2.0*WIDTH);
 		
     // Now we do the forward kinematics
-    if (fabsf(R) > 10000.0) // This would imply that the robot is essentially going straight
+    if (fabsf(R) > 10000.0) // robot is essentially going straight
     {
 	// So, let's perform the straight version kinematics
 	x_pos += Vr*dtbase*cosf(theta);
@@ -542,8 +557,10 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     else
     {
 	// Now let's perform the general kinematics
-	x_pos += cosf(omega*dtbase)*R*sinf(theta)+sinf(omega*dtbase)*R*cosf(theta)-R*sinf(theta);
-	y_pos += sinf(omega*dtbase)*R*sinf(theta)-cosf(omega*dtbase)*R*cosf(theta)+R*cosf(theta);
+	x_pos += cosf(omega*dtbase)*R*sinf(theta)
+	    +sinf(omega*dtbase)*R*cosf(theta)-R*sinf(theta);
+	y_pos += sinf(omega*dtbase)*R*sinf(theta)
+	    -cosf(omega*dtbase)*R*cosf(theta)+R*cosf(theta);
 	theta += omega*dtbase;
     }
 	
@@ -560,9 +577,11 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     case 1:
 	break;
     case 2:
-	// Are we performing an initial rotation to begin heading towards our destination?
+	// Are we performing an initial rotation to
+	// begin heading towards our destination?
 	// Now, let's determine if we have reached the desired orientation yet
-	if(fabsf(theta-first_angle) <= 0.01 || fabsf(fabsf(theta-first_angle)-2.0*M_PI) <= 0.01)
+	if(fabsf(theta-first_angle) <= 0.01 ||
+	   fabsf(fabsf(theta-first_angle)-2.0*M_PI) <= 0.01)
 	{
 	    theta = first_angle;
 	    exec_state = 3;
@@ -585,7 +604,8 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 	break;
     case 4:
 	// Now, let's determine if we have reached the final orientation yet
-	if(fabsf(theta-ori_sent) <= 0.01 || fabsf(fabsf(theta-ori_sent)-2.0*M_PI) <= 0.01)
+	if(fabsf(theta-ori_sent) <= 0.01 ||
+	   fabsf(fabsf(theta-ori_sent)-2.0*M_PI) <= 0.01)
 	{
 	    theta = ori_sent;
 	    // Since we have, we don't need to keep updating the kinematics
@@ -609,7 +629,7 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 
 
 
-/** User Called Functions ********************************************************************************/
+/** User Called Functions ****************************************************/
 // Following function returns the number of 
 // steps that the left motor has taken:
 int GetStepsLeft(void)
@@ -707,16 +727,19 @@ void SetSpeedLeft(float error, float dt)  // motor speed in rad/s
 {
     static float sum_error = 0.0;	// This is the integrated error
     static float d_error = 0.0;		// This is the derivative error
-    static float last_d_error = 0.0;	// This is the previous derivative error    
-    static float last_error = 0.0;	// This is the error sent to SetSpeed functions last time for D-control
-    static float total_error = 0.0;	// This is the sum of all three components of the error
-    static unsigned int PWMVal = 0;     // The actual value that will get stored in the PMW register
-    static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
+    static float last_d_error = 0.0;	// This is the previous derivative error
+    static float last_error = 0.0;	// This is the error  last time
+    static float total_error = 0.0;	// This is the sum of all three errors
+    static unsigned int PWMVal = 0;     // The  will get stored in the PMW 
+    static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter -
+					    // Value in denominator sets
+					    // cutoff frequency for LPF
 
     // Calculate integrated error:
     sum_error += error;
     // Calculate filtered derivative error:
-    d_error = (dtbase*error+dtbase*last_error+(2*tau-dtbase)*last_d_error)/(dtbase+2*tau);
+    d_error = (dtbase*error+dtbase*last_error
+	       +(2*tau-dtbase)*last_d_error)/(dtbase+2*tau);
     // Calculate total error:
     total_error = error*kp+sum_error*ki+d_error*kd;
     // Get PWM Value:
@@ -751,16 +774,19 @@ void SetSpeedRight(float error, float dt)  // motor speed in rad/s
 {
     static float sum_error = 0.0;	// This is the integrated error
     static float d_error = 0.0;		// This is the derivative error
-    static float last_d_error = 0.0;	// This is the previous derivative error    
-    static float last_error = 0.0;	// This is the error sent to SetSpeed functions last time for D-control
-    static float total_error = 0.0;	// This is the sum of all three components of the error
-    static unsigned int PWMVal = 0;     // The actual value that will get stored in the PMW register
-    static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
+    static float last_d_error = 0.0;	// This is the previous derivative error
+    static float last_error = 0.0;	// This is the error  last time
+    static float total_error = 0.0;	// This is the sum of all three errors
+    static unsigned int PWMVal = 0;     // The  will get stored in the PMW 
+    static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter -
+					    // Value in denominator sets
+					    // cutoff frequency for LPF
 
     // Calculate integrated error:
     sum_error += error;
     // Calculate filtered derivative error:
-    d_error = (dtbase*error+dtbase*last_error+(2*tau-dtbase)*last_d_error)/(dtbase+2*tau);
+    d_error = (dtbase*error+dtbase*last_error
+	       +(2*tau-dtbase)*last_d_error)/(dtbase+2*tau);
     // Calculate total error:
     total_error = error*kp+sum_error*ki+d_error*kd;
     // Get PWM Value:
@@ -793,16 +819,19 @@ void SetSpeedTopLeft(float error, float dt)  // motor speed in rad/s
 {
     static float sum_error = 0.0;	// This is the integrated error
     static float d_error = 0.0;		// This is the derivative error
-    static float last_d_error = 0.0;	// This is the previous derivative error    
-    static float last_error = 0.0;	// This is the error sent to SetSpeed functions last time for D-control
-    static float total_error = 0.0;	// This is the sum of all three components of the error
-    static unsigned int PWMVal = 0;     // The actual value that will get stored in the PMW register
-    static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
+    static float last_d_error = 0.0;	// This is the previous derivative error
+    static float last_error = 0.0;	// This is the error  last time
+    static float total_error = 0.0;	// This is the sum of all three errors
+    static unsigned int PWMVal = 0;     // The  will get stored in the PMW 
+    static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter -
+					    // Value in denominator sets
+					    // cutoff frequency for LPF
 
     // Calculate integrated error:
     sum_error += error;
     // Calculate filtered derivative error:
-    d_error = (dtbase*error+dtbase*last_error+(2*tau-dtbase)*last_d_error)/(dtbase+2*tau);
+    d_error = (dtbase*error+dtbase*last_error
+	       +(2*tau-dtbase)*last_d_error)/(dtbase+2*tau);
     // Calculate total error:
     total_error = error*kp+sum_error*ki+d_error*kd;
     // Get PWM Value:
@@ -832,16 +861,19 @@ void SetSpeedTopRight(float error, float dt)  // motor speed in rad/s
 {
     static float sum_error = 0.0;	// This is the integrated error
     static float d_error = 0.0;		// This is the derivative error
-    static float last_d_error = 0.0;	// This is the previous derivative error    
-    static float last_error = 0.0;	// This is the error sent to SetSpeed functions last time for D-control
-    static float total_error = 0.0;	// This is the sum of all three components of the error
-    static unsigned int PWMVal = 0;     // The actual value that will get stored in the PMW register
-    static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter - Value in denominator sets cutoff frequency for LPF
+    static float last_d_error = 0.0;	// This is the previous derivative error
+    static float last_error = 0.0;	// This is the error  last time
+    static float total_error = 0.0;	// This is the sum of all three errors
+    static unsigned int PWMVal = 0;     // The  will get stored in the PMW 
+    static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter -
+					    // Value in denominator sets
+					    // cutoff frequency for LPF
 
     // Calculate integrated error:
     sum_error += error;
     // Calculate filtered derivative error:
-    d_error = (dtbase*error+dtbase*last_error+(2*tau-dtbase)*last_d_error)/(dtbase+2*tau);
+    d_error = (dtbase*error+dtbase*last_error
+	       +(2*tau-dtbase)*last_d_error)/(dtbase+2*tau);
     // Calculate total error:
     total_error = error*kp+sum_error*ki+d_error*kd;
     // Get PWM Value:
@@ -915,12 +947,13 @@ void InitEncoder(void)
     TRISCbits.TRISC14 = 1;
     TRISDbits.TRISD7 = 1;
     
-    // Now we can configure the CHANNEL_A_L pin (D12) to be an input capture pin:
+    // Now we can configure the CHANNEL_A_L pin (D12) to be an IC pin:
     // - Capture Every edge
     // - Enable capture interrupts
     // - Use Timer 3 source
     // - Capture rising edge first
-    OpenCapture5( IC_EVERY_EDGE | IC_INT_1CAPTURE | IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
+    OpenCapture5( IC_EVERY_EDGE | IC_INT_1CAPTURE |
+		  IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
     // Configure the interrupt options
     ConfigIntCapture5(IC_INT_ON | IC_INT_PRIOR_5);
 	
@@ -929,25 +962,28 @@ void InitEncoder(void)
     // - Enable capture interrupts
     // - Use Timer 3 source
     // - Capture rising edge first
-    OpenCapture2( IC_EVERY_EDGE | IC_INT_1CAPTURE | IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
+    OpenCapture2( IC_EVERY_EDGE | IC_INT_1CAPTURE |
+		  IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
     // Configure the interrupt options
     ConfigIntCapture2(IC_INT_ON | IC_INT_PRIOR_5);
 	
-    // Now we can configure the CHANNEL_A_TL pin (D11) to be an input capture pin:
+    // Now we can configure the CHANNEL_A_TL pin (D11) to be an IC pin:
     // - Capture Every edge
     // - Enable capture interrupts
     // - Use Timer 3 source
     // - Capture rising edge first
-    OpenCapture4( IC_EVERY_EDGE | IC_INT_1CAPTURE | IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
+    OpenCapture4( IC_EVERY_EDGE | IC_INT_1CAPTURE |
+		  IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
     // Configure the interrupt options
     ConfigIntCapture4(IC_INT_ON | IC_INT_PRIOR_5);
 
-    // Now we can configure the CHANNEL_A_TR pin (D8) to be an input capture pin:
+    // Now we can configure the CHANNEL_A_TR pin (D8) to be an IC pin:
     // - Capture Every edge
     // - Enable capture interrupts
     // - Use Timer 3 source
     // - Capture rising edge first
-    OpenCapture1( IC_EVERY_EDGE | IC_INT_1CAPTURE | IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
+    OpenCapture1( IC_EVERY_EDGE | IC_INT_1CAPTURE |
+		  IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
     // Configure the interrupt options
     ConfigIntCapture1(IC_INT_ON | IC_INT_PRIOR_5);
 
@@ -971,9 +1007,10 @@ void InitUART2(int pbClk)
     // CTS and RTS pins are disabled 
     // UxRX idle state is '1' 
     // 16x baud clock - normal speed
-#define config1		UART_EN | UART_IDLE_CON | UART_RX_TX | UART_DIS_WAKE | \
-	UART_DIS_LOOPBACK | UART_DIS_ABAUD | UART_NO_PAR_8BIT | UART_1STOPBIT | \
-	UART_IRDA_DIS | UART_DIS_BCLK_CTS_RTS| UART_NORMAL_RX | UART_BRGH_SIXTEEN
+#define config1 UART_EN | UART_IDLE_CON | UART_RX_TX | UART_DIS_WAKE |\
+		UART_DIS_LOOPBACK | UART_DIS_ABAUD | UART_NO_PAR_8BIT |\
+		UART_1STOPBIT | UART_IRDA_DIS | UART_DIS_BCLK_CTS_RTS |\
+		UART_NORMAL_RX | UART_BRGH_SIXTEEN
 	
     // define setup Configuration 2 for OpenUARTx
     // IrDA encoded UxTX idle state is '0'
@@ -983,8 +1020,9 @@ void InitUART2(int pbClk)
     // Interrupt on every char received
     // Disable 9-bit address detect
     // Rx Buffer Over run status bit clear
-#define config2		UART_TX_PIN_LOW | UART_RX_ENABLE | UART_TX_ENABLE | \
-	UART_INT_TX | UART_INT_RX_CHAR | UART_ADR_DETECT_DIS | UART_RX_OVERRUN_CLEAR	
+#define config2	UART_TX_PIN_LOW | UART_RX_ENABLE | UART_TX_ENABLE |\
+		UART_INT_TX | UART_INT_RX_CHAR | UART_ADR_DETECT_DIS |\
+		UART_RX_OVERRUN_CLEAR	
 
     // Open UART2 with config1 and config2
     OpenUART2( config1, config2, pbClk/16/BAUDRATE-1);
@@ -997,7 +1035,7 @@ void InitUART2(int pbClk)
 void InitTimer2(void)
 {
     int Per;
-    Per = (80000000/frequency)/2-1;  // Set the value in the period register
+    Per = (80000000/frequency)/2-1;  // Set the value in PR
     OpenTimer2(T2options, Per);	
     mT2SetIntPriority( 4); 	// set Timer 2 Interrupt Priority
     mT2ClearIntFlag(); 		// clear interrupt flag
@@ -1007,7 +1045,7 @@ void InitTimer2(void)
 void InitTimer4(void)
 {
     int Per;
-    Per = (80000000/timeout_frequency)/256-1;  // Set the value in the period register
+    Per = (80000000/timeout_frequency)/256-1;  // Set the value in PR
     OpenTimer4(T4options, Per);	
     mT4SetIntPriority( 7); 	// set Timer 4 Interrupt Priority
     mT4ClearIntFlag(); 		// clear interrupt flag
@@ -1039,17 +1077,21 @@ void SetPose(float xdest,float ydest,float thdest)
 	// Now calculate the orientation of the back of the robot:
 	thback = theta+M_PI;
 	if(thback >= 2.0*M_PI) thback -= 2.0*M_PI;
-	// Also, let's figure out where the back would be oriented at the destination orientation:
+	// Also, let's figure out where the back would be oriented at
+	// the destination orientation:
 	tpback = ori_sent+M_PI;
 	if(tpback >= 2.0*M_PI) tpback -= 2.0*M_PI;
 		
-	// Let's let RuntimeOperation() know that it can stop calling this function now
+	// Let's let RuntimeOperation() know that it
+	// can stop calling this function now
 	pose_flag = 0;
 		
-	// Now let's determine which direction we want to rotate, and which direction we want to drive:
+	// Now let's determine which direction we want to rotate,
+	// and which direction we want to drive:
 		
 	// Let's assume we want forward operation.
-	// Start by calculating the minimum cost of the initial rotation for this case:
+	// Start by calculating the minimum cost of the
+	// initial rotation for this case:
 	if(((first_angle-theta >= 0)&&(first_angle-theta <= M_PI))||
 	   ((first_angle-theta<0)&&(first_angle-theta<-M_PI)))
 	{
@@ -1061,10 +1103,12 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot1_f = -1;
 	}
-	costf += find_min(fabsf(first_angle-theta-2*M_PI),fabsf(first_angle-theta));
+	costf += find_min(fabsf(first_angle-theta-2*M_PI),
+			  fabsf(first_angle-theta));
 		
 		
-	// Now calculate the minimum cost of the final rotation for this case:
+	// Now calculate the minimum cost of the
+	// final rotation for this case:
 	if(((ori_sent-first_angle >= 0)&&(ori_sent-first_angle <= M_PI))||
 	   ((ori_sent-first_angle<0)&&(ori_sent-first_angle<-M_PI)))
 	{
@@ -1076,10 +1120,12 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot2_f = -1;
 	}
-	costf += find_min(fabsf(ori_sent-first_angle),fabsf(fabsf(ori_sent-first_angle)-2*M_PI));
+	costf += find_min(fabsf(ori_sent-first_angle),
+			  fabsf(fabsf(ori_sent-first_angle)-2*M_PI));
 		
 	// Now, let's assume backwards operation.
-	// Start by calculating the minimum cost of the initial rotation for this case:
+	// Start by calculating the minimum cost of the
+	// initial rotation for this case:
 	if(((first_angle-thback >= 0)&&(first_angle-thback <= M_PI))||
 	   ((first_angle-thback<0)&&(first_angle-thback<-M_PI)))
 	{
@@ -1091,7 +1137,8 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot1_b = -1;
 	}
-	costb += find_min(fabsf(first_angle-thback),fabsf(fabsf(first_angle-thback)-2*M_PI));
+	costb += find_min(fabsf(first_angle-thback),
+			  fabsf(fabsf(first_angle-thback)-2*M_PI));
 		
 	// Now calculate the minimum cost of the final rotation for this case:
 	if(((tpback-first_angle >= 0)&&(tpback-first_angle <= M_PI))||
@@ -1105,7 +1152,8 @@ void SetPose(float xdest,float ydest,float thdest)
 	    // Negative rotation:
 	    rot2_b = -1;
 	}
-	costb += find_min(fabsf(tpback-first_angle),fabsf(fabsf(tpback-first_angle)-2*M_PI));
+	costb += find_min(fabsf(tpback-first_angle),
+			  fabsf(fabsf(tpback-first_angle)-2*M_PI));
 
 	// Now lets figure out which costs less?
 	if (costf <= costb)
@@ -1127,7 +1175,8 @@ void SetPose(float xdest,float ydest,float thdest)
 	    if(first_angle > 2.0*M_PI) first_angle -= 2.0*M_PI;
 	}		
 		
-	// Now let's set the motor speeds such that we begin the first rotation correctly:
+	// Now let's set the motor speeds such that we
+	// begin the first rotation correctly:
 	right_desired = ((float) rot1_flag)*(speed);
 	left_desired = -1.0*((float) rot1_flag)*(speed);
     }
@@ -1151,21 +1200,24 @@ void SetPose(float xdest,float ydest,float thdest)
 }
 
 
-// This is the function that is called after a complete instruction has been received.  It decodes that instruction
+// This is the function that is called after a complete instruction
+// has been received.  It decodes that instruction
 // and then sets important global variables to the correct values.
 void interp_command(void)
 {
-    // The first thing that we do is clear the flags for receiving header bits and for receiving new instructions:
+    // The first thing that we do is clear the flags for receiving
+    // header bits and for receiving new instructions:
     data_flag = 0;
     header_flag = 0;
 
-    // Now, let's disable both OC interrupts, both IC interrupts and the UART interrupt so that they are not interrupting while 
-    //	we are sorting out the data that was received:
+    // Now, let's disable both OC interrupts, both IC interrupts and
+    // the UART interrupt so that they are not interrupting while
+    // we are sorting out the data that was received:
     INTEnable(INT_U2RX, 0);
     INTEnable(INT_U2TX, 0);
 	
     // Now, we can begin sorting the data:
-    char data;  // This is the very first entry in the in buffer (the header byte)
+    char data;  // This is the first entry in the in buffer (the header byte)
     unsigned char buffer[12];
 		
     // Set the current byte of the RS232_In_Buffer to be equal to data:
@@ -1199,7 +1251,7 @@ void interp_command(void)
 
     switch (data)
     {
-	// If the header is a 'p', we have received an instruction for where to go:
+	// If header is a 'p', we have received an instruction for where to go:
     case 'p':
 	exec_state = 2;
 
@@ -1212,8 +1264,8 @@ void interp_command(void)
 	break;
 
     case 'l':
-	// If the header byte is an 'l', we have received updated information about the 
-	// robot's current location.
+	// If the header byte is an 'l', we have received updated
+	// information about the robot's current location.
 	x_pos = interp_number(&Command_String[2]);
 	y_pos = interp_number(&Command_String[5]);
 	theta = interp_number(&Command_String[8]);	
@@ -1241,7 +1293,7 @@ void interp_command(void)
 	top_left_desired = interp_number(&Command_String[8]);
 	top_right_desired = top_left_desired;
 	
-	// We just received commands for explicitly controlling the wheel speeds,
+	// We just received commands for explicitly controlling the wheel speeds
 	// let's force the pose control to stop executing:
 	pose_flag = 0;
 	break;
@@ -1352,7 +1404,7 @@ void interp_command(void)
 	float v_winch_1 = interp_number(&Command_String[8]);
 	float v_winch_2 = interp_number(&Command_String[11]);
 
-	//  Now we need to convert these into angular velocities for the motors:
+	//  Now we need to convert these into angular velocities for the motors
 	left_desired = 2.0*(v_robot_1-w_robot_1*WIDTH)/DWHEEL;
 	right_desired = 2.0*(v_robot_1+w_robot_1*WIDTH)/DWHEEL;
 	top_left_desired = 2.0*v_winch_1/DPULLEY;
@@ -1511,6 +1563,7 @@ void reset_robot(void)
     CloseOC1();
     CloseOC2();
     CloseOC3();
+    CloseOC5();
 
     // Now, we can restart robot:
     SoftReset();
@@ -1673,8 +1726,8 @@ int calculate_feedforward_values(const float k)
     wd_last = wd;
     vd_last = vd;
 
-    if(!swUser)
-    	printf("%f\t%f\n\r",vd,wd);
+    /* if(!swUser) */
+    /* 	printf("%f\t%f\n\r",vd,wd); */
     return 0;
 }
 
