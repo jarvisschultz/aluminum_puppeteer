@@ -153,9 +153,9 @@ int main()
     /* // Initialize the Encoders (and all interrupts): */
     InitEncoder();
     // Initialize Watchdog Timer
-    /* ClearEventWDT(); */
-    /* DisableWDT(); */
-    /* EnableWDT(); */
+    ClearEventWDT();
+    DisableWDT();
+    EnableWDT();
 
     while(1)
     {

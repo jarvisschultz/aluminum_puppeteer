@@ -248,7 +248,7 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 	if (midstring_flag != 1)
 	{
 	    for(j=0;j<sizeof(header_list);j++)
-    {
+	    {
 		if (temp == header_list[j])
 		{
 		    i = 0;
@@ -356,11 +356,6 @@ void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl5) CheckPosition_r()
     tempA = CHANNEL_A_R;
     tempB = CHANNEL_B_R;
 		
-    /* // Let's clear the interrupt flag: */
-    /* INTClearFlag(INT_IC2); */
-    /* // read FIFO buffer */
-    /* IC2BUF; */
-
     // Now we can perform logic to determine which direction we are
     // going and we can increment counter
     if(tempA)
@@ -422,11 +417,6 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl5) CheckPosition_t_l()
     tempA = CHANNEL_A_TL;
     tempB = CHANNEL_B_TL;
 	
-    /* // Let's clear the interrupt flag: */
-    /* INTClearFlag(INT_IC4); */
-    /* // read FIFO buffer */
-    /* IC4BUF; */
-    
     // Now we can perform logic to determine which direction we are
     // going and we can increment counter
     if(tempA)
@@ -459,11 +449,6 @@ void __ISR(_INPUT_CAPTURE_1_VECTOR, ipl5) CheckPosition_t_r()
     tempA = CHANNEL_A_TR;
     tempB = CHANNEL_B_TR;
 	
-    /* // Let's clear the interrupt flag: */
-    /* INTClearFlag(INT_IC1); */
-    /* // read FIFO buffer */
-    /* IC1BUF; */
-    
     // Now we can perform logic to determine which direction we are going
     // and we can increment counter
     if(tempA)
@@ -524,7 +509,6 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     float Vtr = 0.0;
     float omega = 0.0;
     float R = 0.0;
-    /* float dt = 0.0; */
     int top_left_current, top_right_current, left_current, right_current;
     static unsigned int call_count = 0;
     const unsigned int num = floor(frequency/ controller_freq);
@@ -1579,27 +1563,27 @@ int data_checker(unsigned char* buff)
 
 void reset_robot(void)
 {
-    /* // First, let's disable all interrupts: */
-    /* INTDisableInterrupts(); */
+    // First, let's disable all interrupts:
+    INTDisableInterrupts();
 
-    /* // disable any running controllers: */
-    /* pose_flag = 0; */
-    /* controller_flag = 0; */
+    // disable any running controllers:
+    pose_flag = 0;
+    controller_flag = 0;
      
-    /* // Now, shut down all PWM and endcoder pins: */
-    /* CloseOC1(); */
-    /* CloseOC2(); */
-    /* CloseOC3(); */
-    /* CloseOC5(); */
+    // Now, shut down all PWM and endcoder pins:
+    CloseOC1();
+    CloseOC2();
+    CloseOC3();
+    CloseOC5();
 
-    /* // Now, we can restart robot: */
-    /* /\* SoftReset(); *\/ */
-    /* asm("nop"); */
-    /* asm("nop"); */
-    /* asm("nop"); */
-    /* asm("nop"); */
-    /* asm("nop"); */
-    /* asm("nop"); */
+    // Now, we can restart robot:
+    /* SoftReset(); */
+    asm("nop");
+    asm("nop");
+    asm("nop");
+    asm("nop");
+    asm("nop");
+    asm("nop");
 }
 
 void build_number(unsigned char *destination, float value, short int divisor)
