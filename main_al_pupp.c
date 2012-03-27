@@ -105,26 +105,26 @@ int main()
        
     if(ID_flag != '1' || !swUser)
     {
-	// If either of these are true, then let's read our
-	// address from the XBee
-	mLED_2_Toggle();
-	ID = GetID();
-	mLED_3_Toggle();
-	// Now, store the newly read ID in its memory address
-	NVMWriteWord(ptr_ID , (char) ID);
-	if(NVMIsError())
-	{
-	    mLED_1_Toggle();
-	    NVMClearError();
-	}
-	// Now, set the flag that says we have read in the memory
-	// address
-	NVMWriteWord(ptr_ID_flag, '1');
+    	// If either of these are true, then let's read our
+    	// address from the XBee
+    	mLED_2_Toggle();
+    	ID = GetID();
+    	mLED_3_Toggle();
+    	// Now, store the newly read ID in its memory address
+    	NVMWriteWord(ptr_ID , (char) ID);
+    	if(NVMIsError())
+    	{
+    	    mLED_1_Toggle();
+    	    NVMClearError();
+    	}
+    	// Now, set the flag that says we have read in the memory
+    	// address
+    	NVMWriteWord(ptr_ID_flag, '1');
     }
     else
     {
-	// We just read the ID Value
-	ID = (char) (*ptr_ID);
+    	// We just read the IDValue
+    	ID = (char) (*ptr_ID);
     }
     
     ID = '1';
@@ -150,12 +150,12 @@ int main()
     InitTimer2();
     // Initialize the fourth timer for data string timeouts:
     InitTimer4();
-    // Initialize the Encoders (and all interrupts):
+    /* // Initialize the Encoders (and all interrupts): */
     InitEncoder();
     // Initialize Watchdog Timer
-    ClearEventWDT();
-    DisableWDT();
-    EnableWDT();
+    /* ClearEventWDT(); */
+    /* DisableWDT(); */
+    /* EnableWDT(); */
 
     while(1)
     {
@@ -170,9 +170,11 @@ int main()
 	ClearWDT();
     }
     CloseOC5();
+    CloseOC1();
     CloseOC2();
     CloseOC3();
+    CloseCapture1();
     CloseCapture2();
-    CloseCapture5();
     CloseCapture4();
+    CloseCapture5();
 }

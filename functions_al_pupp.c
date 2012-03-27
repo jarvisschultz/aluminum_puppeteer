@@ -1,5 +1,5 @@
 /*************************************************************
-Jarvis Schultz and Marcus Hammond
+Jarvis Schultz
 8-25-2010
 
 This code contains all of the main functions for controlling the
@@ -356,8 +356,10 @@ void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl5) CheckPosition_r()
     tempA = CHANNEL_A_R;
     tempB = CHANNEL_B_R;
 		
-    // Let's clear the interrupt flag:
-    INTClearFlag(INT_IC2);
+    /* // Let's clear the interrupt flag: */
+    /* INTClearFlag(INT_IC2); */
+    /* // read FIFO buffer */
+    /* IC2BUF; */
 
     // Now we can perform logic to determine which direction we are
     // going and we can increment counter
@@ -374,6 +376,11 @@ void __ISR(_INPUT_CAPTURE_2_VECTOR, ipl5) CheckPosition_r()
 	if(tempB) right_steps--;
 	else right_steps++;
     }
+    
+    // read FIFO buffer
+    IC2BUF;
+    // clear flag
+    IFS0bits.IC2IF = 0;
 }
 
 // This is the ISR that gets called when we detect a rising or
@@ -383,25 +390,27 @@ void __ISR(_INPUT_CAPTURE_5_VECTOR, ipl5) CheckPosition_l()
     static int tempA, tempB;
     tempA = CHANNEL_A_L;
     tempB = CHANNEL_B_L;
-		
-    // Let's clear the interrupt flag:
-    INTClearFlag(INT_IC5);
 
     // Now we can perform logic to determine which
     // direction we are going and we can increment counter
     if(tempA)
     {
-	// So, we know that we just detected a rising edge on
-	// channel A.  Let's determine whether
-	// channel b is high or low to determine our direction:
-	if(tempB) left_steps--;
-	else left_steps++;
+    	// So, we know that we just detected a rising edge on
+    	// channel A.  Let's determine whether
+    	// channel b is high or low to determine our direction:
+    	if(tempB) left_steps--;
+    	else left_steps++;
     }
     else if(!tempA)
     {
-	if(tempB) left_steps++;
-	else left_steps--;
+    	if(tempB) left_steps++;
+    	else left_steps--;
     }
+
+    // read FIFO buffer
+    IC5BUF;
+    // clear flag
+    IFS0bits.IC5IF = 0;
 }
 
 
@@ -413,8 +422,11 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl5) CheckPosition_t_l()
     tempA = CHANNEL_A_TL;
     tempB = CHANNEL_B_TL;
 	
-    // Let's clear the interrupt flag:
-    INTClearFlag(INT_IC4);
+    /* // Let's clear the interrupt flag: */
+    /* INTClearFlag(INT_IC4); */
+    /* // read FIFO buffer */
+    /* IC4BUF; */
+    
     // Now we can perform logic to determine which direction we are
     // going and we can increment counter
     if(tempA)
@@ -430,6 +442,12 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, ipl5) CheckPosition_t_l()
 	if(tempB) top_left_steps--;
 	else top_left_steps++;
     }
+
+    
+    // read FIFO buffer
+    IC4BUF;
+    // clear flag
+    IFS0bits.IC4IF = 0;
 }
 
 
@@ -441,8 +459,11 @@ void __ISR(_INPUT_CAPTURE_1_VECTOR, ipl5) CheckPosition_t_r()
     tempA = CHANNEL_A_TR;
     tempB = CHANNEL_B_TR;
 	
-    // Let's clear the interrupt flag:
-    INTClearFlag(INT_IC1);
+    /* // Let's clear the interrupt flag: */
+    /* INTClearFlag(INT_IC1); */
+    /* // read FIFO buffer */
+    /* IC1BUF; */
+    
     // Now we can perform logic to determine which direction we are going
     // and we can increment counter
     if(tempA)
@@ -458,6 +479,12 @@ void __ISR(_INPUT_CAPTURE_1_VECTOR, ipl5) CheckPosition_t_r()
 	if(tempB) top_right_steps++;
 	else top_right_steps--;
     }
+
+    // read FIFO buffer
+    IC1BUF;
+    // clear flag
+    IFS0bits.IC1IF = 0;
+
 }
 
 
@@ -953,7 +980,7 @@ void InitEncoder(void)
     // - Use Timer 3 source
     // - Capture rising edge first
     OpenCapture5( IC_EVERY_EDGE | IC_INT_1CAPTURE |
-		  IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
+    		  IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
     // Configure the interrupt options
     ConfigIntCapture5(IC_INT_ON | IC_INT_PRIOR_5);
 	
@@ -963,7 +990,7 @@ void InitEncoder(void)
     // - Use Timer 3 source
     // - Capture rising edge first
     OpenCapture2( IC_EVERY_EDGE | IC_INT_1CAPTURE |
-		  IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
+    		  IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
     // Configure the interrupt options
     ConfigIntCapture2(IC_INT_ON | IC_INT_PRIOR_5);
 	
@@ -973,7 +1000,7 @@ void InitEncoder(void)
     // - Use Timer 3 source
     // - Capture rising edge first
     OpenCapture4( IC_EVERY_EDGE | IC_INT_1CAPTURE |
-		  IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
+    		  IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
     // Configure the interrupt options
     ConfigIntCapture4(IC_INT_ON | IC_INT_PRIOR_5);
 
@@ -983,7 +1010,7 @@ void InitEncoder(void)
     // - Use Timer 3 source
     // - Capture rising edge first
     OpenCapture1( IC_EVERY_EDGE | IC_INT_1CAPTURE |
-		  IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
+    		  IC_TIMER3_SRC |IC_FEDGE_RISE | IC_ON );
     // Configure the interrupt options
     ConfigIntCapture1(IC_INT_ON | IC_INT_PRIOR_5);
 
@@ -1552,27 +1579,27 @@ int data_checker(unsigned char* buff)
 
 void reset_robot(void)
 {
-    // First, let's disable all interrupts:
-    INTDisableInterrupts();
+    /* // First, let's disable all interrupts: */
+    /* INTDisableInterrupts(); */
 
-    // disable any running controllers:
-    pose_flag = 0;
-    controller_flag = 0;
+    /* // disable any running controllers: */
+    /* pose_flag = 0; */
+    /* controller_flag = 0; */
      
-    // Now, shut down all PWM and endcoder pins:
-    CloseOC1();
-    CloseOC2();
-    CloseOC3();
-    CloseOC5();
+    /* // Now, shut down all PWM and endcoder pins: */
+    /* CloseOC1(); */
+    /* CloseOC2(); */
+    /* CloseOC3(); */
+    /* CloseOC5(); */
 
-    // Now, we can restart robot:
-    SoftReset();
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
+    /* // Now, we can restart robot: */
+    /* /\* SoftReset(); *\/ */
+    /* asm("nop"); */
+    /* asm("nop"); */
+    /* asm("nop"); */
+    /* asm("nop"); */
+    /* asm("nop"); */
+    /* asm("nop"); */
 }
 
 void build_number(unsigned char *destination, float value, short int divisor)

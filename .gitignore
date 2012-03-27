@@ -6,7 +6,7 @@
 *.mcs
 *.mcw
 *.mcp
-
+TAGS
 
 # Compiled source #
 ###################
