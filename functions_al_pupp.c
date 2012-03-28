@@ -1005,35 +1005,36 @@ void InitEncoder(void)
 // This function is used for initilizing the UART2
 void InitUART2(int pbClk)
 {
+    
     // define setup Configuration 1 for OpenUARTx
-    // Module Enable 
-    // Work in IDLE mode 
-    // Communication through usual pins 
-    // Disable wake-up 
-    // Loop back disabled 
-    // Input to Capture module from ICx pin 
-    // no parity 8 bit 
-    // 1 stop bit 
-    // IRDA encoder and decoder disabled 
-    // CTS and RTS pins are disabled 
-    // UxRX idle state is '1' 
+    // Module Enable
+    // Work in IDLE mode
+    // Communication through usual pins
+    // Disable wake-up
+    // Loop back disabled
+    // Input to Capture module from ICx pin
+    // no parity 8 bit
+    // 1 stop bit
+    // IRDA encoder and decoder disabled
+    // CTS and RTS pins are disabled
+    // UxRX idle state is '1'
     // 16x baud clock - normal speed
-#define config1 UART_EN | UART_IDLE_CON | UART_RX_TX | UART_DIS_WAKE |\
-		UART_DIS_LOOPBACK | UART_DIS_ABAUD | UART_NO_PAR_8BIT |\
-		UART_1STOPBIT | UART_IRDA_DIS | UART_DIS_BCLK_CTS_RTS |\
-		UART_NORMAL_RX | UART_BRGH_SIXTEEN
+#define config1 UART_EN | UART_IDLE_CON | UART_RX_TX | UART_DIS_WAKE |	\
+	UART_DIS_LOOPBACK | UART_DIS_ABAUD | UART_NO_PAR_8BIT |		\
+	UART_1STOPBIT | UART_IRDA_DIS | UART_DIS_BCLK_CTS_RTS |		\
+	UART_NORMAL_RX | UART_BRGH_SIXTEEN
 	
     // define setup Configuration 2 for OpenUARTx
     // IrDA encoded UxTX idle state is '0'
     // Enable UxRX pin
     // Enable UxTX pin
-    // Interrupt on transfer of every character to TSR 
+    // Interrupt on transfer of every character to TSR
     // Interrupt on every char received
     // Disable 9-bit address detect
     // Rx Buffer Over run status bit clear
-#define config2	UART_TX_PIN_LOW | UART_RX_ENABLE | UART_TX_ENABLE |\
-		UART_INT_TX | UART_INT_RX_CHAR | UART_ADR_DETECT_DIS |\
-		UART_RX_OVERRUN_CLEAR	
+#define config2	UART_TX_PIN_LOW | UART_RX_ENABLE | UART_TX_ENABLE |	\
+	UART_INT_TX | UART_INT_RX_CHAR | UART_ADR_DETECT_DIS |		\
+	UART_RX_OVERRUN_CLEAR
 
     // Open UART2 with config1 and config2
     OpenUART2( config1, config2, pbClk/16/BAUDRATE-1);
@@ -1041,6 +1042,17 @@ void InitUART2(int pbClk)
     // Configure UART2 RX Interrupt with priority 6
     ConfigIntUART2(UART_INT_PR6 | UART_RX_INT_EN);
 }								
+    /* // turn on UART2 with an interrupt */
+    /* UARTConfigure(UART2, UART_ENABLE_PINS_TX_RX_ONLY); */
+    /* UARTSetFifoMode(UART2, UART_INTERRUPT_ON_TX_DONE | UART_INTERRUPT_ON_RX_NOT_EMPTY); */
+    /* UARTSetLineControl(UART2, UART_DATA_SIZE_8_BITS | UART_PARITY_NONE | UART_STOP_BITS_1); */
+    /* UARTSetDataRate(UART2, SYS_FREQ, 115200); */
+    /* UARTEnable(UART2, UART_ENABLE_FLAGS(UART_PERIPHERAL | UART_RX | UART_TX)); */
+
+    /* // Configure UART2 RX Interrupt */
+    /* INTEnable(INT_U2RX, INT_ENABLED); */
+    /* INTSetVectorPriority(INT_UART_2_VECTOR, INT_PRIORITY_LEVEL_6); */
+    /* INTSetVectorSubPriority(INT_UART_2_VECTOR, INT_SUB_PRIORITY_LEVEL_0); */
 
 
 void InitTimer2(void)
@@ -1224,8 +1236,8 @@ void interp_command(void)
     // Now, let's disable both OC interrupts, both IC interrupts and
     // the UART interrupt so that they are not interrupting while
     // we are sorting out the data that was received:
-    INTEnable(INT_U2RX, 0);
-    INTEnable(INT_U2TX, 0);
+    /* INTEnable(INT_U2RX, 0); */
+    /* INTEnable(INT_U2TX, 0); */
 	
     // Now, we can begin sorting the data:
     char data;  // This is the first entry in the in buffer (the header byte)
@@ -1248,15 +1260,15 @@ void interp_command(void)
 	    else
 	    {
 		movement_flag = 1;
-		mLED_2_Toggle();
+		/* mLED_2_Toggle(); */
 	    }
     	}
     }
     if (movement_flag == 0)
     {
-	INTEnable(INT_U2RX, 1);
-	INTEnable(INT_U2TX, 1);
-	return;
+    	/* INTEnable(INT_U2RX, 1); */
+    	/* INTEnable(INT_U2TX, 1); */
+    	return;
     }
 
 
@@ -1334,7 +1346,7 @@ void interp_command(void)
 	exec_state = 0;
 	stop_all_motors();
 	movement_flag = 0;
-	mLED_2_Toggle();
+	/* mLED_2_Toggle(); */
 	break;
 
     case 'w':
@@ -1346,19 +1358,19 @@ void interp_command(void)
     	// Add checksum and send to master node:
     	create_send_array(0, buffer);
 	ClearEventWDT();
-    	EnableWDT();
+    	/* EnableWDT(); */
 	break;
 
     case 'e':
 	// This is a request for the robot's current motor speeds,
     	// so let's send it out:
     	DisableWDT();
-    	// Make string to send out:
+	// Make string to send out:
     	make_string(buffer,'e',left_speed,right_speed,top_left_speed,3);
     	// Add checksum and send to master node:
     	create_send_array(0, buffer);
     	ClearEventWDT();
-    	EnableWDT();
+    	/* EnableWDT(); */
 	break;
 
     case 'k':
@@ -1368,7 +1380,7 @@ void interp_command(void)
 	pose_flag = 0;
 	winch_controller_flag = 0;
 	ClearEventWDT();
-	EnableWDT();
+	/* EnableWDT(); */
 	break;
 
     case 't':
@@ -1379,7 +1391,7 @@ void interp_command(void)
 	pose_flag = 0;
 	winch_controller_flag = 1;
 	ClearEventWDT();
-	EnableWDT();
+	/* EnableWDT(); */
 	break;
 
     case 'n':
@@ -1426,8 +1438,8 @@ void interp_command(void)
     }
 	
     // Now, let's re-enable all interrupts:
-    INTEnable(INT_U2RX, 1);
-    INTEnable(INT_U2TX, 1);
+    /* INTEnable(INT_U2RX, 1); */
+    /* INTEnable(INT_U2TX, 1); */
 }
 
 void RuntimeOperation(void)
