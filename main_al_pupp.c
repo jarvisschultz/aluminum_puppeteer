@@ -150,12 +150,12 @@ int main()
     InitTimer2();
     // Initialize the fourth timer for data string timeouts:
     InitTimer4();
-    /* // Initialize the Encoders (and all interrupts): */
+    // Initialize the Encoders (and all interrupts):
     InitEncoder();
     // Initialize Watchdog Timer
-    /* ClearEventWDT(); */
-    /* DisableWDT(); */
-    /* EnableWDT(); */
+    ClearEventWDT();
+    DisableWDT();
+    EnableWDT();
 
     while(1)
     {

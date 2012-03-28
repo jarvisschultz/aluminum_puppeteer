@@ -8,7 +8,7 @@ OBJ = functions_al_pupp.o\
 	main_al_pupp.o
 HDR = prototypes_al_pupp.h\
 	HardwareProfile.h
-PIC = 32MX795F512L
+PIC = 32MX460F512L
 TARGET = Al_Robot
 
 all : $(TARGET).hex

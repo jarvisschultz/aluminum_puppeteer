@@ -701,39 +701,39 @@ float GetSpeedTopRight(void)
 // manually changing the number of encoder steps for the left motor:
 void SetStepsLeft(int set_steps)
 {
-    INTEnable(INT_OC3, 0);
+    IEC0bits.OC3IE = 0;
     left_steps = set_steps;
-    INTEnable(INT_OC3, 1);
+    IEC0bits.OC3IE = 1;
 }
 
 // Next function allows to user to re-set a "home" position by
 // manually changing the number of encoder steps for the right motor:
 void SetStepsRight(int set_steps)
 {
-    INTEnable(INT_OC5, 0);
+    IEC0bits.OC5IE = 0;
     right_steps = set_steps;
-    INTEnable(INT_OC5, 1);
+    IEC0bits.OC5IE = 1;
 }
 
 // Next function allows to user to re-set a "home" position by
 // manually changing the number of encoder steps for the top left motor:
 void SetStepsTopLeft(int set_steps)
 {
-    INTEnable(INT_OC2, 0);
+    IEC0bits.OC2IE = 0;
     top_left_steps = set_steps;
-    INTEnable(INT_OC2, 1);
+    IEC0bits.OC2IE = 1;
 }
 
 // Next function allows to user to re-set a "home" position by
 // manually changing the number of encoder steps for the top right motor:
 void SetStepsTopRight(int set_steps)
 {
-    INTEnable(INT_OC1, 0);
+    IEC0bits.OC1IE = 0;
     top_right_steps = set_steps;
-    INTEnable(INT_OC1, 1);
+    IEC0bits.OC1IE = 1;
 }
 
-// This function allows the user to specify the desired left motor speed:
+// THIS function allows the user to specify the desired left motor speed:
 void SetSpeedLeft(float error, float dt)  // motor speed in rad/s
 {
     static float sum_error = 0.0;	// This is the integrated error
@@ -1246,6 +1246,9 @@ void interp_command(void)
     // Set the current byte of the RS232_In_Buffer to be equal to data:
     data = Command_String[0];
 
+    // clear WDT because this might take a while
+    ClearWDT();
+
     // First, let's check to see if we are actually moving yet:
     if (movement_flag == 0 && data == 'm')
     {
@@ -1260,7 +1263,7 @@ void interp_command(void)
 	    else
 	    {
 		movement_flag = 1;
-		/* mLED_2_Toggle(); */
+		mLED_2_Toggle();
 	    }
     	}
     }
@@ -1346,7 +1349,7 @@ void interp_command(void)
 	exec_state = 0;
 	stop_all_motors();
 	movement_flag = 0;
-	/* mLED_2_Toggle(); */
+	mLED_2_Toggle();
 	break;
 
     case 'w':
@@ -1358,7 +1361,8 @@ void interp_command(void)
     	// Add checksum and send to master node:
     	create_send_array(0, buffer);
 	ClearEventWDT();
-    	/* EnableWDT(); */
+	ClearWDT();
+    	EnableWDT();
 	break;
 
     case 'e':
@@ -1370,7 +1374,8 @@ void interp_command(void)
     	// Add checksum and send to master node:
     	create_send_array(0, buffer);
     	ClearEventWDT();
-    	/* EnableWDT(); */
+	ClearWDT();
+    	EnableWDT();
 	break;
 
     case 'k':
@@ -1380,7 +1385,8 @@ void interp_command(void)
 	pose_flag = 0;
 	winch_controller_flag = 0;
 	ClearEventWDT();
-	/* EnableWDT(); */
+	ClearWDT();
+    	EnableWDT();
 	break;
 
     case 't':
@@ -1391,7 +1397,8 @@ void interp_command(void)
 	pose_flag = 0;
 	winch_controller_flag = 1;
 	ClearEventWDT();
-	/* EnableWDT(); */
+	ClearWDT();
+	EnableWDT();
 	break;
 
     case 'n':
@@ -1589,7 +1596,7 @@ void reset_robot(void)
     CloseOC5();
 
     // Now, we can restart robot:
-    /* SoftReset(); */
+    SoftReset();
     asm("nop");
     asm("nop");
     asm("nop");
