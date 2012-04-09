@@ -92,10 +92,6 @@ int main()
     // Initialize UART Communication
     InitUART2(PbClk);
 
-    // Send feedback to the user:
-    putsUART2("Program Started\r\n\n");
-    while(BusyUART2());
-
     // Let's set the pointers we initialized to the addresses
     // defined at the beginning
     ptr_ID_flag = (void*)ID_ADDRESS_FLAG;
@@ -111,12 +107,14 @@ int main()
     	ID = GetID();
     	mLED_3_Toggle();
     	// Now, store the newly read ID in its memory address
+	delay();
     	NVMWriteWord(ptr_ID , (char) ID);
     	if(NVMIsError())
     	{
     	    mLED_1_Toggle();
     	    NVMClearError();
     	}
+	delay();
     	// Now, set the flag that says we have read in the memory
     	// address
     	NVMWriteWord(ptr_ID_flag, '1');
@@ -126,12 +124,16 @@ int main()
     	// We just read the IDValue
     	ID = (char) (*ptr_ID);
     }
-    
-    ID = '1';
+
+    // Send feedback to the user:
+    putsUART2("Program Started\r\n\n");
+    while(BusyUART2());
+    /* ID = '1'; */
+    putsUART2("ID = ");
     putcUART2(ID);
     while(BusyUART2());
     putsUART2("\n\r");
-    /* CloseUART2(); */
+
     while(swProgram)
     {
 	mLED_1_On();
