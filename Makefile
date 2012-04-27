@@ -8,7 +8,8 @@ OBJ = functions_al_pupp.o\
 	main_al_pupp.o
 HDR = prototypes_al_pupp.h\
 	HardwareProfile.h
-PIC = 32MX460F512L
+PIC = 460
+PROC = 32MX$(PIC)F512L
 TARGET = Al_Robot
 
 all : $(TARGET).hex
@@ -17,10 +18,10 @@ $(TARGET).hex : $(TARGET).elf
 	$(HX) $(TARGET).elf
 
 $(TARGET).elf : $(OBJ)
-	$(CC) -mprocessor=$(PIC) $(OBJ) -v -Wall -o $(TARGET).elf -Wl,--defsym=__MPLAB_BUILD=1,-Map=$(TARGET).map
+	$(CC) -mprocessor=$(PROC) $(OBJ) -v -Wall -o $(TARGET).elf -Wl,--defsym=__MPLAB_BUILD=1,-Map=$(TARGET).map
 
 %.o : %.c $(HDR)
-	$(CC) -mprocessor=$(PIC) -v -Wall -c $< -o $@ -I"." -g
+	$(CC) -mprocessor=$(PROC) -v -Wall -c $< -o $@ -I"." -g
 
 clean : 
 	$(RM) $(OBJ) $(TARGET).elf $(TARGET).hex $(TARGET).map
