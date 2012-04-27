@@ -6,6 +6,7 @@
 *.mcs
 *.mcw
 *.mcp
+*.hex
 TAGS
 
 # Compiled source #

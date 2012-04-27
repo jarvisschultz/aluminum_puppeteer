@@ -12,22 +12,24 @@ PIC = 460
 PROC = 32MX$(PIC)F512L
 TARGET = Al_Robot
 
-all : $(TARGET).hex
 
-$(TARGET).hex : $(TARGET).elf
-	$(HX) $(TARGET).elf
+$(PIC)_$(TARGET).hex : $(PIC)_$(TARGET).elf
+	@echo Creating hex file
+	$(HX) $(PIC)_$(TARGET).elf
 
-$(TARGET).elf : $(OBJ)
-	$(CC) -mprocessor=$(PROC) $(OBJ) -v -Wall -o $(TARGET).elf -Wl,--defsym=__MPLAB_BUILD=1,-Map=$(TARGET).map
+$(PIC)_$(TARGET).elf : $(addprefix $(PIC)_, $(OBJ))
+	@echo Linking elf file
+	$(CC) -mprocessor=$(PROC) $(addprefix $(PIC)_, $(OBJ)) -Wall -o $(PIC)_$(TARGET).elf -Wl,--defsym=__MPLAB_BUILD=1,-Map=$(PIC)_$(TARGET).map
 
-%.o : %.c $(HDR)
-	$(CC) -mprocessor=$(PROC) -v -Wall -c $< -o $@ -I"." -g
+%.o :  $(patsubst %.o, %.c, $(subst $(PIC)_,,$(OBJ))) $(HDR)
+	@echo creating object $@
+	$(CC) -mprocessor=$(PROC) -Wall -c $(patsubst %.o, %.c, $(subst $(PIC)_,,$@)) -o $@ -I"." -g
 
 clean : 
-	$(RM) $(OBJ) $(TARGET).elf $(TARGET).hex $(TARGET).map
+	$(RM) *.hex *.map *.o *.elf	
 
-write : all
-	ubw32 -write $(TARGET).hex
+write : 
+	ubw32 -write $(PIC)_$(TARGET).hex
 
 help : 
 	ubw32 -help
