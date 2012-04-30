@@ -28,7 +28,7 @@ $(PIC)_$(TARGET).elf : $(addprefix $(PIC)_, $(OBJ))
 clean : 
 	$(RM) *.hex *.map *.o *.elf	
 
-write : 
+write : $(PIC)_$(TARGET).hex
 	ubw32 -write $(PIC)_$(TARGET).hex
 
 help : 
