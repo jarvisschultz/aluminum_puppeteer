@@ -84,9 +84,9 @@ controller for trajectory following.
 #define converttop (M_PI/(CPR*dtbase*TOPGEARRATIO))      
 #define ticktime (2.0/(80000000.0))    // For calculating times since timer
 				       // ISR's were initially called
-#define MAX_BAD_DATA_TOTAL (200)	       
-#define MAX_BAD_DATA	(5)
-#define MAX_BAD_COUNTER  (20)
+#define MAX_BAD_DATA_TOTAL (20)	       
+#define MAX_BAD_DATA	(10)
+#define MAX_BAD_COUNTER  (200)
 #define timeout_frequency (5)
 #define SYS_FREQ	(80000000L)
 
