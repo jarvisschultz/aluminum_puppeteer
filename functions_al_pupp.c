@@ -84,10 +84,10 @@ controller for trajectory following.
 #define converttop (M_PI/(CPR*dtbase*TOPGEARRATIO))      
 #define ticktime (2.0/(80000000.0))    // For calculating times since timer
 				       // ISR's were initially called
-#define MAX_BAD_DATA_TOTAL (10)	       
+#define MAX_BAD_DATA_TOTAL (200)	       
 #define MAX_BAD_DATA	(5)
-#define MAX_BAD_COUNTER  (200)
-#define timeout_frequency (10)
+#define MAX_BAD_COUNTER  (20)
+#define timeout_frequency (5)
 #define SYS_FREQ	(80000000L)
 
 
@@ -1042,17 +1042,6 @@ void InitUART2(int pbClk)
     // Configure UART2 RX Interrupt with priority 6
     ConfigIntUART2(UART_INT_PR6 | UART_RX_INT_EN);
 }								
-    /* // turn on UART2 with an interrupt */
-    /* UARTConfigure(UART2, UART_ENABLE_PINS_TX_RX_ONLY); */
-    /* UARTSetFifoMode(UART2, UART_INTERRUPT_ON_TX_DONE | UART_INTERRUPT_ON_RX_NOT_EMPTY); */
-    /* UARTSetLineControl(UART2, UART_DATA_SIZE_8_BITS | UART_PARITY_NONE | UART_STOP_BITS_1); */
-    /* UARTSetDataRate(UART2, SYS_FREQ, 115200); */
-    /* UARTEnable(UART2, UART_ENABLE_FLAGS(UART_PERIPHERAL | UART_RX | UART_TX)); */
-
-    /* // Configure UART2 RX Interrupt */
-    /* INTEnable(INT_U2RX, INT_ENABLED); */
-    /* INTSetVectorPriority(INT_UART_2_VECTOR, INT_PRIORITY_LEVEL_6); */
-    /* INTSetVectorSubPriority(INT_UART_2_VECTOR, INT_SUB_PRIORITY_LEVEL_0); */
 
 
 void InitTimer2(void)
@@ -1064,6 +1053,7 @@ void InitTimer2(void)
     mT2ClearIntFlag(); 		// clear interrupt flag
     mT2IntEnable( 1);		// enable timer 2 interrupts
 }
+
 
 void InitTimer4(void)
 {
