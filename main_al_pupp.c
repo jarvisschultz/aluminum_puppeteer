@@ -87,8 +87,6 @@ int main()
     mJTAGPortEnable(0);
     // Initialize the LED's:
     mInitAllLEDs();
-    // Initialize the PWM pins:
-    InitMotorPWM();
     // Initialize UART Communication
     InitUART2(PbClk);
 
@@ -146,6 +144,8 @@ int main()
     mLED_3_Off();
     mLED_4_Off();
 
+    // Initialize the PWM pins:
+    InitMotorPWM();
     // Re-initialize UART2
     /* InitUART2(PbClk); */
     // Initialize the second timer for checking kinematics:
