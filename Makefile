@@ -1,14 +1,10 @@
-AS := pic32-as
-CC := pic32-gcc
-LD := pic32-ld
-AR := pic32-ar
-HX := pic32-bin2hex
+AS := xc32-as
+CC := xc32-gcc
+LD := xc32-ld
+AR := xc32-ar
+HX := xc32-bin2hex
 RM := rm
-#OBJ := functions_al_pupp.o\
-	main_al_pupp.o
 OBJ := $(patsubst %.c, %.o,$(wildcard *.c))
-#HDR := prototypes_al_pupp.h\
-	HardwareProfile.h
 HDR := $(wildcard *.h)
 PIC := 460
 PROC := 32MX$(PIC)F512L
