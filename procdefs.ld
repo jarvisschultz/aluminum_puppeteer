@@ -4,6 +4,12 @@
 INPUT("processor.o")
 
 /*************************************************************************
+ * Processor-specific peripheral libraries are optional
+ *************************************************************************/
+OPTIONAL("libmchp_peripheral.a")
+OPTIONAL("libmchp_peripheral_32MX795F512L.a")
+
+/*************************************************************************
  * For interrupt vector handling
  *************************************************************************/
 PROVIDE(_vector_spacing = 0x00000001);
