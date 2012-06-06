@@ -19,11 +19,14 @@ $(PIC)_$(TARGET).hex : $(PIC)_$(TARGET).elf
 
 $(PIC)_$(TARGET).elf : $(addprefix $(PIC)_, $(OBJ))
 	@echo Linking elf file
-	$(CC) -mprocessor=$(PROC) $(addprefix $(PIC)_, $(OBJ)) -Wall -o $(PIC)_$(TARGET).elf -Wl,--defsym=__MPLAB_BUILD=1,-Map=$(PIC)_$(TARGET).map
+	$(CC) -mprocessor=$(PROC) $(addprefix $(PIC)_, $(OBJ)) \
+		-Wl,-Bstatic -lmchp_peripheral_$(PROC) -Wall \
+		-o $(PIC)_$(TARGET).elf -Wl,--defsym=__MPLAB_BUILD=1,-Map=$(PIC)_$(TARGET).map
 
 $(addprefix $(PIC)_, $(OBJ)) : %.o :  $(patsubst %.o, %.c, $(subst $(PIC)_,,$(OBJ))) $(HDR)
 	@echo creating object $@
-	$(CC) -mprocessor=$(PROC) -Wall -c $(patsubst %.o, %.c, $(subst $(PIC)_,,$@)) -o $@ -I"." -g
+	$(CC) -mprocessor=$(PROC) -Wall -c $(patsubst %.o, %.c, $(subst $(PIC)_,,$@)) \
+		-o $@ -I"." -g
 
 clean : 
 	$(RM) *.hex *.map *.o *.elf	
