@@ -176,7 +176,7 @@ static unsigned char header_list[]={'p','l','r','h','s','q','m','w',
 //	'p' = Drive to a desired pose (R)
 //	'l' = Re-define the robot's position and orientation (R)
 //	'r' = Stop driving, and re-set the global configuration to the robot's
-//		current pose (R)
+//		current pose and string lengths (R)
 //	'h' = Motor speed command (winches run at same speed) (R)
 //	's' = Change default speed for pose control (R)
 //	'q' = Stop the robot, and reset movement_flag (R)
