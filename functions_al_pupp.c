@@ -116,8 +116,9 @@ static long long top_right_steps_last = 0;
 static float x_pos = 0.0;		
 static float y_pos = 0.0;		
 static float theta = 0.0;  // w.r.t positive x-axis (clamped between 0 and 2pi)
-static float height_left = 0.0; // increases as string length decreases i.e.
-static float height_right = 0.0; // up is positive
+static float height_left = 0.0;  // length of string, could be considered
+static float height_right = 0.0; // relative to initial length (can be
+				 // corrected though)
 
 // Robot constants (in meters):
 // Aluminum Puppteer:
@@ -170,7 +171,7 @@ static float kd = 0.5;		// Gain on the derivative error term
 
 // Add a bunch of variables for communication safety:
 static unsigned char header_list[]={'p','l','r','h','s','q','m','w',
-				    'e','d','k','t','n','b','a'};
+				    'e','d','k','t','n','b','a','c'};
 /******************************************************************************/
 // Note that the header characters mean the following:
 //	'p' = Drive to a desired pose (R)
@@ -183,6 +184,7 @@ static unsigned char header_list[]={'p','l','r','h','s','q','m','w',
 //	'm' = Start command; must receive this before driving can begin (R)
 //	'w' = Current pose request (S)
 //	'e' = Current motor speeds request (S)
+//	'c' = Current string height request (S)
 //	'd' = Translational and rotational velocity command
 //		(both winches the same)(R)
 //	'k' = Run kinematic controller for following trajectories (R)
@@ -256,7 +258,7 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 		    midstring_flag = 1;
 		    DATA_LENGTH = PACKET_SIZE;
 		    // If a request, it is a short packet!
-		    if (temp == 'w' || temp == 'e')
+		    if (temp == 'w' || temp == 'e' || temp == 'c')
 			DATA_LENGTH = SMALL_PACKET_SIZE;
 		    // Is this a long packet?
 		    if (temp == 't' || temp == 'n' || temp == 'a')
@@ -1355,6 +1357,18 @@ void interp_command(void)
     	EnableWDT();
 	break;
 
+    case 'c':
+	// a request for the current lengths of the strings
+	DisableWDT();
+	// Make string to send out:
+    	make_string(buffer,'w',height_left,height_right,0,4);
+    	// Add checksum and send to master node:
+    	create_send_array(0, buffer);
+	ClearEventWDT();
+	ClearWDT();
+    	EnableWDT();
+	break;
+	
     case 'e':
 	// This is a request for the robot's current motor speeds,
     	// so let's send it out:
