@@ -171,7 +171,7 @@ static float kd = 0.5;		// Gain on the derivative error term
 
 // Add a bunch of variables for communication safety:
 static unsigned char header_list[]={'p','l','r','h','s','q','m','w',
-				    'e','d','k','t','n','b','a','c'};
+				    'e','c','d','k','t','n','b','a','i'};
 /******************************************************************************/
 // Note that the header characters mean the following:
 //	'p' = Drive to a desired pose (R)
@@ -261,7 +261,8 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 		    if (temp == 'w' || temp == 'e' || temp == 'c')
 			DATA_LENGTH = SMALL_PACKET_SIZE;
 		    // Is this a long packet?
-		    if (temp == 't' || temp == 'n' || temp == 'a')
+		    if (temp == 't' || temp == 'n' ||
+			temp == 'a' || temp == 'i' )
 			DATA_LENGTH = LARGE_PACKET_SIZE;
 		    break;
 		}
