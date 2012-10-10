@@ -10,13 +10,11 @@ The code requires a version of the pic32-gcc compiler to compile.
 Although the .hex file produced by compilation is the file that is
 actually loaded into the PIC's flash. Currently I am using a UBW32
 breakout board for the PIC, and am using the linux ubw32 program to
-load the hex file via a bootloader.  All of this is subject to change
-in the future.  I have a pickit3 and an ICD2 available for programming
-the PICs, and I am fairly certain I will be desiging a new board in
-the near future.
+load the hex file via a bootloader. 
 
-More information about the bootloading program can be found at
-www.schmalzhaus.com/UBW32/
+More information about the bootloading program and the UBW32 itself
+can be found at
+www.schmalzhaus.com/UBW32/ 
 
 or 
 
