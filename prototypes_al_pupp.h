@@ -9,7 +9,7 @@ This file simply contains the function prototypes/ declarations
 
 #define _MOTORS
 #include <plib.h>
-#include <p32xxxx.h>
+#include <xc.h>
 /******************************************************************************
  * FUNCTIONS FOR MOTOR CONTROLS ***********************************************
  * ***************************************************************************/
