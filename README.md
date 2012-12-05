@@ -28,7 +28,7 @@ Assuming you have make installed, and the xc32-gcc compiler (from Microchip) is
 available on your system's path, the code can be compiled for the 795 and loaded
 onto the UBW32 using
 
-    `make PIC=795 write`
+    make PIC=795 write
 
 Replacing the '795' with '460' would compile for the PIC32MX460F512L.  
 
@@ -38,13 +38,17 @@ More Information
 
 More information about the project, the NxR lab, and videos of the system
 working can be found at
+
 http://lims.mech.northwestern.edu/RESEARCH/current_projects/Puppets/Marionette_homepage.html
+
 http://nxr.mech.northwestern.edu
+
 http://vimeo.com/channels/numarionette
 
 
 More information about the bootloading program and the UBW32 itself
 can be found at
+
 www.schmalzhaus.com/UBW32/ 
 
 and 
