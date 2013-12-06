@@ -19,7 +19,7 @@ Currently, the PIC processors are attached to UBW32 boards which are then
 plugged into separate breakout boards that connect to the motors, and serial
 communication circuit.  On my system, the code is compiled into a *.hex file,
 and then loaded onto the UBW32 via the
-[ubw32](www.paintyourdragon.com/uc/ubw32/index.html) command line program.  The
+[ubw32](http://www.paintyourdragon.com/uc/ubw32/index.html) command line program.  The
 UBW32's have the standard bootloader onboard.  Note that with very little
 modification, this code could be loaded with a PIC programmer (such as the
 PICKit3).
