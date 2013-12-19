@@ -40,12 +40,10 @@ puppeteers with four motors.
 #include "HardwareProfile.h"
 
 /** Global Variables ******************************************/
-#define SYS_FREQ 	       (80000000L)	
-#define TOGGLES_PER_SEC	       1000
-#define CORE_TICK_RATE	       (SYS_FREQ/2/TOGGLES_PER_SEC)
-#define UART_TIMEOUT	       (2100000)
-#define ID_ADDRESS	       (0x9D07CFD0)
-#define ID_ADDRESS_FLAG	       (0x9D07CFE0)
+#define UART_TIMEOUT           (2100000)
+#define BASE_PAGE	       (0x9D016000)
+#define ID_ADDRESS             (BASE_PAGE + 0x400)
+#define ID_ADDRESS_FLAG        (BASE_PAGE + 0x800)
 char ID, ID_flag;
 unsigned int *ptr_ID, *ptr_ID_flag;
 
@@ -99,28 +97,35 @@ int main()
        
     if(ID_flag != '1' || !swUser)
     {
-    	// If either of these are true, then let's read our
-    	// address from the XBee
-    	mLED_2_Toggle();
-    	ID = GetID();
-    	mLED_3_Toggle();
-    	// Now, store the newly read ID in its memory address
-	delay();
-    	NVMWriteWord(ptr_ID , (char) ID);
-    	if(NVMIsError())
-    	{
-    	    mLED_1_Toggle();
-    	    NVMClearError();
-    	}
-	delay();
-    	// Now, set the flag that says we have read in the memory
-    	// address
-    	NVMWriteWord(ptr_ID_flag, '1');
+        // If either of these are true, then let's read our
+        // address from the XBee
+        mLED_2_Toggle();
+        ID = GetID();
+        mLED_3_Toggle();
+        // Now, store the newly read ID in its memory address
+        delay();
+	NVMErasePage((void*) BASE_PAGE);
+        NVMWriteWord(ptr_ID , (unsigned int) ID);
+        if(NVMIsError())
+        {
+            mLED_1_Toggle();
+            NVMClearError();
+        }
+        delay();
+        // Now, set the flag that says we have read in the memory
+        // address
+        NVMWriteWord(ptr_ID_flag, (unsigned int) '1');
+	if(NVMIsError())
+        {
+            mLED_2_Toggle();
+            NVMClearError();
+        }
+
     }
     else
     {
-    	// We just read the IDValue
-    	ID = (char) (*ptr_ID);
+        // We just read the IDValue
+        ID = (char) (*ptr_ID);
     }
 
     // Send feedback to the user:
@@ -132,6 +137,11 @@ int main()
     while(BusyUART2());
     putsUART2("\n\r");
 
+    putsUART2("ptr_ID = ");
+    putcUART2((char) (*ptr_ID));
+    while(BusyUART2());
+    putsUART2("\n\r");
+    
     while(swProgram)
     {
 	mLED_1_On();

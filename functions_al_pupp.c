@@ -88,7 +88,6 @@ controller for trajectory following.
 #define MAX_BAD_DATA	(10)
 #define MAX_BAD_COUNTER  (200)
 #define timeout_frequency (5)
-#define SYS_FREQ	(80000000L)
 
 
 /** Global Variables **************************************************/
