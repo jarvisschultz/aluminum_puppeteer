@@ -131,7 +131,6 @@ int main()
     // Send feedback to the user:
     putsUART2("Program Started\r\n\n");
     while(BusyUART2());
-    /* ID = '1'; */
     putsUART2("ID = ");
     putcUART2(ID);
     while(BusyUART2());
