@@ -87,6 +87,8 @@ int main()
     mInitAllLEDs();
     // Initialize UART Communication
     InitUART2(PbClk);
+    // Initialize motor control pins:
+    InitMotorPins();
 
     // Let's set the pointers we initialized to the addresses
     // defined at the beginning
@@ -153,7 +155,7 @@ int main()
     mLED_3_Off();
     mLED_4_Off();
 
-    // Initialize the PWM pins:
+    // Initialize motor PWM:
     InitMotorPWM();
     // Re-initialize UART2
     /* InitUART2(PbClk); */

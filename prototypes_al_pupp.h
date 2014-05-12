@@ -50,7 +50,8 @@ void stop_all_motors(void);
 void InitUART2(int pbClk);				
 void InitTimer2(void);					
 void InitTimer4(void);					
-void InitMotorPWM(void);				
+void InitMotorPWM(void);
+void InitMotorPins(void);
 void InitEncoder(void);					
 
 /******************************************************************************
@@ -72,6 +73,7 @@ void create_send_array(unsigned short id, unsigned char *DataString);
 void SetPose(float xdest, float ydest, float thdest);
 void RuntimeOperation(void);    			
 void reset_robot(void);
+void puppeteer_shutdown(void);
 // Functions for kinematic controller:
 void run_fifo(const float new_val, float *array, const unsigned int size);
 void calculate_controller_gains(void);

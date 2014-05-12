@@ -913,21 +913,27 @@ void SetSpeedTopRight(float error, float dt)  // motor speed in rad/s
     }
 }
 
-void InitMotorPWM(void)
+
+void InitMotorPins(void)
 {
     // Set port D pins as low digital outputs:
-    LATD |= 0x0000;
+    LATD &= 0x0000;
     // PWM Pins set to outputs:
     TRISDbits.TRISD2 = 0;
     TRISDbits.TRISD4 = 0;
     TRISDbits.TRISD1 = 0;
     TRISDbits.TRISD0 = 0;
-	
     // Direction Pins to outputs:
     TRISDbits.TRISD3 = 0;
     TRISDbits.TRISD5 = 0;
     TRISCbits.TRISC13 = 0;
     TRISDbits.TRISD10 = 0;
+}
+
+
+void InitMotorPWM(void)
+{
+    InitMotorPins();
     
     // init OC5 module, on pin D4
     OpenOC5( OC_ON | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
@@ -1455,17 +1461,21 @@ void interp_command(void)
 
 void RuntimeOperation(void)
 {
-    // If the buffer has just filled, and we know we received a good
-    // set of data (because it began with a header bit and was full
-    // length chars and the checksum was correct), let's call our
-    // functions that interpret and execute the received data
-    if(data_flag == 1) interp_command();
+    if (swUser && swProgram)
+    {
+	// If the buffer has just filled, and we know we received a good
+	// set of data (because it began with a header bit and was full
+	// length chars and the checksum was correct), let's call our
+	// functions that interpret and execute the received data
+	if(data_flag == 1) interp_command();
 	
-    // If we are currently controlling pose, lets call that function
-    if(pose_flag == 1) SetPose(x_sent,y_sent,ori_sent);
+	// If we are currently controlling pose, lets call that function
+	if(pose_flag == 1) SetPose(x_sent,y_sent,ori_sent);
 
-    // Run kinematic controller?
-    if(controller_flag == 1)  run_controller();
+	// Run kinematic controller?
+	if(controller_flag == 1)  run_controller();
+    }
+    
 }
 
 // This function is for determining the minium of two numbers:
@@ -1985,3 +1995,47 @@ void check_safety(void)
 
     return;
 }
+
+
+/********************************************/
+/* Insert handlers for unhandled exceptions */
+/********************************************/
+void puppeteer_shutdown(void)
+{
+    DisableWDT();
+    INTDisableInterrupts();
+    SetDCOC1PWM(0);
+    SetDCOC2PWM(0);
+    SetDCOC3PWM(0);
+    SetDCOC5PWM(0);
+    // set a weird light configuration:
+    mLED_1_On();
+    mLED_2_Off();
+    mLED_3_Off();
+    mLED_4_On();
+    // enter an infinite loop
+    while(1)
+	asm("nop");
+}
+
+
+void _bootstrap_exception_handler(void)
+{
+    puppeteer_shutdown();
+}
+
+void _general_exception_handler (unsigned cause, unsigned status)
+{
+    puppeteer_shutdown();
+}
+
+void _simple_tlb_refill_exception_handler(void)
+{
+    puppeteer_shutdown();
+}
+
+void _cache_err_exception_handler(void)
+{
+    puppeteer_shutdown();
+}
+
