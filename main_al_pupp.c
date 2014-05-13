@@ -89,14 +89,15 @@ int main()
     InitUART2(PbClk);
     // Initialize motor control pins:
     InitMotorPins();
-
+    
     // Let's set the pointers we initialized to the addresses
     // defined at the beginning
     ptr_ID_flag = (void*)ID_ADDRESS_FLAG;
     ptr_ID = (void*)ID_ADDRESS;
     // Let's read the value in the flag address:
     ID_flag = (char) (*ptr_ID_flag);
-       
+
+    
     if(ID_flag != '1' || !swUser)
     {
         // If either of these are true, then let's read our
@@ -154,6 +155,9 @@ int main()
     mLED_2_Off();
     mLED_3_Off();
     mLED_4_Off();
+
+    // let's delay for a little bit before doing anything:
+    delay();
 
     // Initialize motor PWM:
     InitMotorPWM();

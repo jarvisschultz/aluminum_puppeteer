@@ -88,6 +88,7 @@ controller for trajectory following.
 #define MAX_BAD_DATA	(10)
 #define MAX_BAD_COUNTER  (200)
 #define timeout_frequency (5)
+#define DEFAULT_WINCH_SPEED (5)
 
 
 /** Global Variables **************************************************/
@@ -1461,6 +1462,8 @@ void interp_command(void)
 
 void RuntimeOperation(void)
 {
+    static unsigned short left_button_last = TRUE;
+    static unsigned short right_button_last = TRUE;
     if (swUser && swProgram)
     {
 	// If the buffer has just filled, and we know we received a good
@@ -1473,9 +1476,29 @@ void RuntimeOperation(void)
 	if(pose_flag == 1) SetPose(x_sent,y_sent,ori_sent);
 
 	// Run kinematic controller?
-	if(controller_flag == 1)  run_controller();
+	if(controller_flag == 1) run_controller();
+
     }
-    
+    else
+    {
+    	timeout_flag = 0;
+    	// run left?
+    	if (!swUser)
+    	    top_left_desired = -DEFAULT_WINCH_SPEED;
+    	else
+    	    top_left_desired = 0.0;
+    	/* run right? */
+    	if (!swProgram)
+    	    top_right_desired = -DEFAULT_WINCH_SPEED;
+    	else
+    	    top_right_desired = 0.0;
+    }
+    if (swUser && (swUser != left_button_last))
+	top_left_desired = 0.0;
+    if (swProgram && (swProgram != right_button_last))
+	top_right_desired = 0.0;
+    left_button_last = swUser;
+    right_button_last = swProgram;
 }
 
 // This function is for determining the minium of two numbers:
