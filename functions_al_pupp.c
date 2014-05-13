@@ -1620,17 +1620,24 @@ int data_checker(unsigned char* buff)
 void reset_robot(void)
 {
     // First, let's disable all interrupts:
+    DisableWDT();
     INTDisableInterrupts();
+
+    // set all PWMs to zero
+    SetDCOC1PWM(0);
+    SetDCOC2PWM(0);
+    SetDCOC3PWM(0);
+    SetDCOC5PWM(0);
 
     // disable any running controllers:
     pose_flag = 0;
     controller_flag = 0;
      
-    // Now, shut down all PWM and endcoder pins:
-    CloseOC1();
-    CloseOC2();
-    CloseOC3();
-    CloseOC5();
+    // Close PWM and endcoders:
+    CloseOC1(); CloseCapture1();
+    CloseOC2(); CloseCapture2();
+    CloseOC3(); CloseCapture4();
+    CloseOC5(); CloseCapture5();
 
     // Now, we can restart robot:
     SoftReset();
