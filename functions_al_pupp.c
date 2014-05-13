@@ -1460,6 +1460,7 @@ void interp_command(void)
     /* INTEnable(INT_U2TX, 1); */
 }
 
+
 void RuntimeOperation(void)
 {
     // If the buffer has just filled, and we know we received a good
@@ -1473,44 +1474,6 @@ void RuntimeOperation(void)
 
     // Run kinematic controller?
     if(controller_flag == 1) run_controller();
-
-    /* static unsigned short left_button_last = TRUE; */
-    /* static unsigned short right_button_last = TRUE; */
-    /* if (swUser && swProgram) */
-    /* { */
-    /* 	// If the buffer has just filled, and we know we received a good */
-    /* 	// set of data (because it began with a header bit and was full */
-    /* 	// length chars and the checksum was correct), let's call our */
-    /* 	// functions that interpret and execute the received data */
-    /* 	if(data_flag == 1) interp_command(); */
-	
-    /* 	// If we are currently controlling pose, lets call that function */
-    /* 	if(pose_flag == 1) SetPose(x_sent,y_sent,ori_sent); */
-
-    /* 	// Run kinematic controller? */
-    /* 	if(controller_flag == 1) run_controller(); */
-
-    /* } */
-    /* else */
-    /* { */
-    /* 	timeout_flag = 0; */
-    /* 	// run left? */
-    /* 	if (!swUser) */
-    /* 	    top_left_desired = -DEFAULT_WINCH_SPEED; */
-    /* 	else */
-    /* 	    top_left_desired = 0.0; */
-    /* 	/\* run right? *\/ */
-    /* 	if (!swProgram) */
-    /* 	    top_right_desired = -DEFAULT_WINCH_SPEED; */
-    /* 	else */
-    /* 	    top_right_desired = 0.0; */
-    /* } */
-    /* if (swUser && (swUser != left_button_last)) */
-    /* 	top_left_desired = 0.0; */
-    /* if (swProgram && (swProgram != right_button_last)) */
-    /* 	top_right_desired = 0.0; */
-    /* left_button_last = swUser; */
-    /* right_button_last = swProgram; */
 }
 
 

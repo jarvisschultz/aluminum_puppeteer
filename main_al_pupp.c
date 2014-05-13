@@ -157,13 +157,8 @@ int main()
     mLED_3_Off();
     mLED_4_Off();
 
-    // let's delay for a little bit before doing anything:
-    /* delay(); */
-
     // Initialize motor PWM:
     InitMotorPWM();
-    // Re-initialize UART2
-    /* InitUART2(PbClk); */
     // Initialize the second timer for checking kinematics:
     InitTimer2();
     // Initialize the fourth timer for data string timeouts:
