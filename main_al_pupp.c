@@ -40,10 +40,11 @@ puppeteers with four motors.
 #include "HardwareProfile.h"
 
 /** Global Variables ******************************************/
-#define UART_TIMEOUT           (2100000)
-#define BASE_PAGE	       (0x9D016000)
-#define ID_ADDRESS             (BASE_PAGE + 0x400)
-#define ID_ADDRESS_FLAG        (BASE_PAGE + 0x800)
+#define UART_TIMEOUT		(2100000)
+#define BASE_PAGE		(0x9D016000)
+#define ID_ADDRESS		(BASE_PAGE + 0x400)
+#define ID_ADDRESS_FLAG		(BASE_PAGE + 0x800)
+#define PUSH_BREAK_COUNT	(250000)
 char ID, ID_flag;
 unsigned int *ptr_ID, *ptr_ID_flag;
 
@@ -157,7 +158,7 @@ int main()
     mLED_4_Off();
 
     // let's delay for a little bit before doing anything:
-    delay();
+    /* delay(); */
 
     // Initialize motor PWM:
     InitMotorPWM();
@@ -174,6 +175,7 @@ int main()
     DisableWDT();
     EnableWDT();
 
+    unsigned int push_count = 0;
     while(1)
     {
 	// We simply call this function repeatedly, and it executes
@@ -185,7 +187,35 @@ int main()
 	// To ensure that the PIC code is not stuck somehow, we
 	// use a watchdog timer. Let's reset it here:
 	ClearWDT();
+
+	// break out if we have pushed User button enough:
+	if (!swUser)
+	    push_count++;
+	else
+	    push_count = 0;
+	if (push_count > PUSH_BREAK_COUNT)
+	    break;
     }
+
+    // first we disable timeout timer interrupt
+    CloseTimer4();
+    ConfigIntTimer4(T4_INT_OFF);
+
+    // loop for contolling winches:
+    j = 0;
+    mLED_4_On();
+    mLED_3_On();
+    while(1)
+    {
+	j++;
+	// run manual winch commands:
+	manual_winch_runtime();
+	// blink
+	if(j%500000 == 0) mLED_3_Toggle();
+	ClearWDT();
+    }
+
+    
     CloseOC5();
     CloseOC1();
     CloseOC2();

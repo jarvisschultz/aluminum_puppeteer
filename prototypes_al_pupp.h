@@ -22,24 +22,24 @@ This file simply contains the function prototypes/ declarations
  * FUNCTIONS FOR MOTOR CONTROLS ***********************************************
  * ***************************************************************************/
 // LEFT
-void SetStepsLeft(int set_steps);   	
+void SetStepsLeft(int set_steps);
 void SetSpeedLeft(float motor_speed, float dt);
-float GetSpeedLeft(void);			
-int GetStepsLeft(void);		 	        
+float GetSpeedLeft(void);
+int GetStepsLeft(void);
 // RIGHT
 void SetStepsRight(int set_steps);
 void SetSpeedRight(float motor_speed, float dt);
-float GetSpeedRight(void);			
-int GetStepsRight(void);		 	
+float GetSpeedRight(void);
+int GetStepsRight(void);
 // TOP LEFT
-void SetStepsTopLeft(int set_steps);     
-void SetSpeedTopLeft(float motor_speed, float dt); 
-float GetSpeedTopLeft(void);				
-int GetStepsTopLeft(void);		 		
+void SetStepsTopLeft(int set_steps);
+void SetSpeedTopLeft(float motor_speed, float dt);
+float GetSpeedTopLeft(void);
+int GetStepsTopLeft(void);
 // TOP RIGHT
-void SetStepsTopRight(int set_steps);        
-void SetSpeedTopRight(float motor_speed, float dt); 	
-float GetSpeedTopRight(void);				
+void SetStepsTopRight(int set_steps);
+void SetSpeedTopRight(float motor_speed, float dt);
+float GetSpeedTopRight(void);
 int GetStepsTopRight(void);
 
 void stop_all_motors(void);
@@ -47,19 +47,19 @@ void stop_all_motors(void);
 /******************************************************************************
  * FUNCTIONS FOR INITIALIZATIONS **********************************************
  * ***************************************************************************/
-void InitUART2(int pbClk);				
-void InitTimer2(void);					
-void InitTimer4(void);					
+void InitUART2(int pbClk);
+void InitTimer2(void);
+void InitTimer4(void);
 void InitMotorPWM(void);
 void InitMotorPins(void);
-void InitEncoder(void);					
+void InitEncoder(void);
 
 /******************************************************************************
  * FUNCTIONS FOR COMMUNICATION ************************************************
  * ***************************************************************************/
-void interp_command(void);				
-void SendDataBuffer(const char *buffer, UINT32 size);	
-float interp_number(const unsigned char *data);	 	
+void interp_command(void);
+void SendDataBuffer(const char *buffer, UINT32 size);
+float interp_number(const unsigned char *data);
 int data_checker(unsigned char* buff);
 void build_number(unsigned char *destination, float value, short int divisor);
 void make_string(unsigned char *dest, char type,
@@ -71,7 +71,8 @@ void create_send_array(unsigned short id, unsigned char *DataString);
  * ***************************************************************************/
 // GENERAL
 void SetPose(float xdest, float ydest, float thdest);
-void RuntimeOperation(void);    			
+void RuntimeOperation(void);
+void manual_winch_runtime(void);
 void reset_robot(void);
 void puppeteer_shutdown(void);
 // Functions for kinematic controller:
@@ -87,7 +88,7 @@ void check_safety(void);
 /******************************************************************************
  * MISCELLANEOUS FUNCTIONS ****************************************************
  * ***************************************************************************/
-float find_min(float a, float b);			
+float find_min(float a, float b);
 void delay(void);
 float clamp_angle(float th);
 float find_min_angle(float a, float b);
@@ -95,16 +96,4 @@ float sign(float x);
 
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
 
