@@ -9,7 +9,7 @@ housed within the Neuroscience and Robotics Laboratory (NxR lab).
 Each robot has a PIC32 processor (either a PIC32MX460F512L or a
 PIC32MX795F512L), and is controlled by a master computer via an XBee network.
 Each robot is responsible for controlling 4 separate DC motors via PID loops, as
-well as tracking odometry, and providing a serial interface.  
+well as tracking odometry, and providing a serial interface.
 
 
 Compiling and loading onto the PIC
@@ -30,7 +30,7 @@ onto the UBW32 using
 
     make PIC=795 write
 
-Replacing the '795' with '460' would compile for the PIC32MX460F512L.  
+Replacing the '795' with '460' would compile for the PIC32MX460F512L.
 
 
 More Information
@@ -39,9 +39,7 @@ More Information
 More information about the project, the NxR lab, and videos of the system
 working can be found at
 
-http://lims.mech.northwestern.edu/RESEARCH/current_projects/Puppets/Marionette_homepage.html
-
-http://nxr.mech.northwestern.edu
+http://nxr.northwestern.edu/research/scalable-algorithms-physical-systems/marionettes
 
 http://vimeo.com/channels/numarionette
 
@@ -49,8 +47,8 @@ http://vimeo.com/channels/numarionette
 More information about the bootloading program and the UBW32 itself
 can be found at
 
-www.schmalzhaus.com/UBW32/ 
+http://www.schmalzhaus.com/UBW32/ 
 
 and 
 
-www.paintyourdragon.com/uc/ubw32/index.html
+http://www.paintyourdragon.com/uc/ubw32/index.html
