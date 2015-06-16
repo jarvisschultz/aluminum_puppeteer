@@ -8,8 +8,8 @@ This file simply contains the function prototypes/ declarations
 #ifndef _MOTORS
 
 #define _MOTORS
-#include <plib.h>
-#include <xc.h>
+
+#include <stddef.h>
 
 /******************************************************************************
  * GLOBAL CONSTANTS ***********************************************************
@@ -58,7 +58,7 @@ void InitEncoder(void);
  * FUNCTIONS FOR COMMUNICATION ************************************************
  * ***************************************************************************/
 void interp_command(void);
-void SendDataBuffer(const char *buffer, UINT32 size);
+void SendDataBuffer(const char *buffer, size_t size);
 float interp_number(const unsigned char *data);
 int data_checker(unsigned char* buff);
 void build_number(unsigned char *destination, float value, short int divisor);

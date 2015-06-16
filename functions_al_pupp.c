@@ -231,7 +231,7 @@ static float ydd = 0;
 /** Interrupt Handler Functions:***********************************************/
 // UART 2 interrupt handler
 // it is set at priority level 2
-void __ISR(_UART2_VECTOR, IPL6) IntUart2Handler(void)
+void __ISR(_UART2_VECTOR, IPL6AUTO) IntUart2Handler(void)
 {
     unsigned char temp;
     // Is this from receiving data?
@@ -353,7 +353,7 @@ void __ISR(_UART2_VECTOR, IPL6) IntUart2Handler(void)
 
 // This is the ISR that gets called when we detect a rising or
 // falling edge on CHANNEL_A_R
-void __ISR(_INPUT_CAPTURE_2_VECTOR, IPL5) CheckPosition_r()
+void __ISR(_INPUT_CAPTURE_2_VECTOR, IPL5AUTO) CheckPosition_r()
 {
     static int tempA, tempB;
     tempA = CHANNEL_A_R;
@@ -383,7 +383,7 @@ void __ISR(_INPUT_CAPTURE_2_VECTOR, IPL5) CheckPosition_r()
 
 // This is the ISR that gets called when we detect a rising or
 // falling edge on CHANNEL_A_L
-void __ISR(_INPUT_CAPTURE_5_VECTOR, IPL5) CheckPosition_l()
+void __ISR(_INPUT_CAPTURE_5_VECTOR, IPL5AUTO) CheckPosition_l()
 {
     static int tempA, tempB;
     tempA = CHANNEL_A_L;
@@ -414,7 +414,7 @@ void __ISR(_INPUT_CAPTURE_5_VECTOR, IPL5) CheckPosition_l()
 
 // This is the ISR that gets called when we detect a rising or
 // falling edge on CHANNEL_A_TL
-void __ISR(_INPUT_CAPTURE_4_VECTOR, IPL5) CheckPosition_t_l()
+void __ISR(_INPUT_CAPTURE_4_VECTOR, IPL5AUTO) CheckPosition_t_l()
 {
     static int tempA, tempB;
     tempA = CHANNEL_A_TL;
@@ -446,7 +446,7 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, IPL5) CheckPosition_t_l()
 
 // This is the ISR that gets called when we detect a rising or
 // falling edge on CHANNEL_A_TR
-void __ISR(_INPUT_CAPTURE_1_VECTOR, IPL5) CheckPosition_t_r()
+void __ISR(_INPUT_CAPTURE_1_VECTOR, IPL5AUTO) CheckPosition_t_r()
 {
     static int tempA, tempB;
     tempA = CHANNEL_A_TR;
@@ -504,7 +504,7 @@ void __ISR(_TIMER_4_VECTOR, IPL7SRS) Data_Timeout()
 //  using forward kinematics and odometry data.  We will also decide 
 //  if we new controls are needed to be sent to the wheels so that 
 //  the robot can continue to do what it is supposed to be doing.
-void __ISR(_TIMER_2_VECTOR, IPL4) CheckKinematics()
+void __ISR(_TIMER_2_VECTOR, IPL4AUTO) CheckKinematics()
 {
     float Vr = 0.0;
     float Vl = 0.0;

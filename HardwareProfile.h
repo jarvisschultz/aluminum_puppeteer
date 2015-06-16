@@ -45,6 +45,9 @@
 #ifndef HARDWARE_PROFILE_UBW32_H
 #define HARDWARE_PROFILE_UBW32_H
 
+#define _SUPPRESS_PLIB_WARNING
+#define _DISABLE_OPENADC10_CONFIGPORT_WARNING
+
 #include <plib.h>
 
 typedef unsigned char uint8;
